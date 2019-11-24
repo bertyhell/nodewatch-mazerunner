@@ -1,27 +1,79 @@
 "use strict";
 // const isBangle = process && process.env && process.env.BOARD === 'BANGLEJS';
-var playerX = 1.5;
-var playerY = 4.5;
-var playerAngle = 270;
+// Game variables
+var mazeWidth = 9;
+var mazeHeight = 6;
+var debugCellSize = 40;
+var screenWidth = 240;
+var screenHeight = 160;
+var playerX = 1.5; // TODO get this from the maze (position of "2")
+var playerY = 1.5;
+var playerAngle = 90;
 var viewAngleWidth = 90;
 var angleStep = 5;
 var playerStepSize = 0.1;
-var verticalWallEpsilon = 0.01; // collisions with walls within this margin will draw a vertical wall
+// Computed values
+var mazeHorCells = mazeWidth * 2 + 1;
+var mazeVerCells = mazeHeight * 2 + 1;
+var debugWidth = mazeHorCells * 40;
+var debugHeight = mazeVerCells * 40;
 var MazeElement;
 (function (MazeElement) {
+    MazeElement[MazeElement["UNVISITED_EMPTY"] = -1] = "UNVISITED_EMPTY";
     MazeElement[MazeElement["EMPTY"] = 0] = "EMPTY";
     MazeElement[MazeElement["WALL"] = 1] = "WALL";
     MazeElement[MazeElement["PLAYER"] = 2] = "PLAYER";
     MazeElement[MazeElement["END"] = 3] = "END";
 })(MazeElement || (MazeElement = {}));
-var maze = [
-    [1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 1, 0, 1],
-    [1, 0, 1, 0, 0, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1],
-    [1, 2, 1, 0, 1, 3, 1],
-    [1, 1, 1, 1, 1, 1, 1]
-];
+// Determines if we should draw a vertical wall line for the given intersections at the center of these 4 maze cells:
+// +-----+
+// |0 |1 |
+// +-----+
+// |2 |3 |
+// +-----+
+//
+// eg: 1000 => should draw a wall at the X
+// +--+--+
+// |W |  |
+// +--X--+
+// |  |  |
+// +--+--+
+//
+// eg: 1010 => should not draw a wall at the X since the wall is smoothly running from top to bottom across the intersection
+// +--+--+
+// |W |  |
+// +--X--+
+// |W |  |
+// +--+--+
+//
+// We can assume the X location is always visible from the user's perspective
+var CORNERS = {
+    '0000': false,
+    '0001': true,
+    '0010': true,
+    '0011': false,
+    '0100': true,
+    '0101': false,
+    '0110': false,
+    '0111': true,
+    '1000': true,
+    '1001': true,
+    '1010': false,
+    '1011': true,
+    '1100': false,
+    '1101': true,
+    '1110': true,
+    '1111': false
+};
+var maze = generateMaze(mazeHorCells, mazeVerCells);
+// let maze: MazeElement[][] = [
+// 	[1, 1, 1, 1, 1, 1, 1],
+// 	[1, 0, 0, 0, 1, 0, 1],
+// 	[1, 0, 1, 0, 0, 0, 1],
+// 	[1, 0, 1, 0, 1, 0, 1],
+// 	[1, 2, 1, 0, 1, 3, 1],
+// 	[1, 1, 1, 1, 1, 1, 1]
+// ];
 var running = true;
 var Bangle = {
     setLCDMode: function (type) {
@@ -32,6 +84,8 @@ var contextDebug;
 window.onload = function () {
     var canvas = document.getElementById('canvas');
     if (canvas) {
+        canvas.width = screenWidth;
+        canvas.height = screenHeight;
         var tempContext = canvas.getContext('2d');
         if (tempContext) {
             context = tempContext;
@@ -45,6 +99,8 @@ window.onload = function () {
     }
     var canvasDebug = document.getElementById('canvas-debug');
     if (canvasDebug) {
+        canvasDebug.width = debugWidth;
+        canvasDebug.height = debugHeight;
         var tempContext = canvasDebug.getContext('2d');
         if (tempContext) {
             contextDebug = tempContext;
@@ -64,13 +120,13 @@ var g = {
     },
     clear: function () {
         context.fillStyle = '#EEEEEE';
-        context.fillRect(0, 0, 240, 160);
+        context.fillRect(0, 0, screenWidth, screenHeight);
         context.fillStyle = '#000000';
     },
     flip: function () {
     },
-    getWidth: function () { return 240; },
-    getHeight: function () { return 160; }
+    getWidth: function () { return screenWidth; },
+    getHeight: function () { return screenHeight; }
 };
 function cos(deg) {
     return Math.cos(((deg + 360) % 360) / 180 * Math.PI);
@@ -175,8 +231,6 @@ function gameStop() {
 function gameStart() {
     running = true;
 }
-var debugWidth = 70 * 4 + 1;
-var debugHeight = 60 * 4 + 1;
 function drawDebugGrid() {
     contextDebug.fillStyle = '#FFFFFF';
     contextDebug.clearRect(0, 0, debugWidth, debugHeight);
@@ -195,45 +249,42 @@ function drawDebugGrid() {
             else {
                 contextDebug.fillStyle = '#FFFFFF';
             }
-            contextDebug.fillRect(col * 40, row * 40, 40, 40);
-            contextDebug.strokeRect(col * 40, row * 40, 40, 40);
+            contextDebug.fillRect(col * debugCellSize, row * debugCellSize, debugCellSize, debugCellSize);
+            contextDebug.strokeRect(col * debugCellSize, row * debugCellSize, debugCellSize, debugCellSize);
         }
     }
     // draw player
     contextDebug.fillStyle = '#0000FF';
-    contextDebug.fillRect(playerX * 40 - 3, playerY * 40 - 3, 7, 7);
+    contextDebug.fillRect(playerX * debugCellSize - 3, playerY * debugCellSize - 3, 7, 7);
     // draw viewAngle
     contextDebug.strokeStyle = '#666666';
-    // contextDebug.moveTo(playerX * 40, playerY * 40);
-    // contextDebug.lineTo(playerX * 40 + 1000 * cos(playerAngle), playerY * 40 + 1000 * sin(playerAngle));
-    // contextDebug.stroke();
     contextDebug.beginPath();
-    contextDebug.moveTo(playerX * 40, playerY * 40);
-    contextDebug.lineTo(playerX * 40 + 1000 * cos(playerAngle - viewAngleWidth / 2), playerY * 40 + 1000 * sin(playerAngle - viewAngleWidth / 2));
+    contextDebug.moveTo(playerX * debugCellSize, playerY * debugCellSize);
+    contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(playerAngle - viewAngleWidth / 2), playerY * debugCellSize + 1000 * sin(playerAngle - viewAngleWidth / 2));
     contextDebug.stroke();
     contextDebug.beginPath();
-    contextDebug.moveTo(playerX * 40, playerY * 40);
-    contextDebug.lineTo(playerX * 40 + 1000 * cos(playerAngle + viewAngleWidth / 2), playerY * 40 + 1000 * sin(playerAngle + viewAngleWidth / 2));
+    contextDebug.moveTo(playerX * debugCellSize, playerY * debugCellSize);
+    contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(playerAngle + viewAngleWidth / 2), playerY * debugCellSize + 1000 * sin(playerAngle + viewAngleWidth / 2));
     contextDebug.stroke();
 }
 function drawDebugPixel(x, y, color) {
     if (color === void 0) { color = '#ff8e00'; }
     contextDebug.fillStyle = color;
-    contextDebug.fillRect(x * 40 - 1, y * 40 - 1, 3, 3);
+    contextDebug.fillRect(x * debugCellSize - 1, y * debugCellSize - 1, 3, 3);
 }
 function drawDebugLine(x1, y1, x2, y2, color) {
     if (color === void 0) { color = 'rgba(200, 200, 200, 0.5)'; }
     contextDebug.strokeStyle = color;
     contextDebug.beginPath();
-    contextDebug.moveTo(x1 * 40, y1 * 40);
-    contextDebug.lineTo(x2 * 40, y2 * 40);
+    contextDebug.moveTo(x1 * debugCellSize, y1 * debugCellSize);
+    contextDebug.lineTo(x2 * debugCellSize, y2 * debugCellSize);
     contextDebug.stroke();
 }
 function getSquareDistance(x1, y1, x2, y2) {
     return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
 }
-function areOutsideMaze(x, y) {
-    return !(x >= 0 && x < maze[0].length && y >= 0 && y < maze.length);
+function isOutsideMaze(maze, location) {
+    return !(location.x >= 0 && location.x < maze[0].length && location.y >= 0 && location.y < maze.length);
 }
 /**
  * https://www.permadi.com/tutorial/raycast/rayc7.html
@@ -255,12 +306,10 @@ function getCollisionDistance(viewAngle, outerRay) {
     var isFacingRight;
     var horIntersectionX;
     var horIntersectionY;
-    var horGridX;
-    var horGridY;
+    var horGridLocation;
     var vertIntersectionX;
     var vertIntersectionY;
-    var vertGridX;
-    var vertGridY;
+    var vertGridLocation;
     while (!horCollision || !vertCollision) {
         isFacingUp = quadrant === 2 || quadrant === 3;
         // horizontal intersection
@@ -285,12 +334,14 @@ function getCollisionDistance(viewAngle, outerRay) {
             }
             horIntersectionX = initialHorIntersectionX + (horizontalOffsetX || 0) * intersectionOffset * (isFacingUp ? -1 : 1);
             horIntersectionY = initialHorIntersectionY + (horizontalOffsetY || 0) * intersectionOffset;
-            horGridX = Math.floor(horIntersectionX);
-            horGridY = Math.floor(horIntersectionY) + (isFacingUp ? -1 : 0);
-            if (areOutsideMaze(horGridX, horGridY) || maze[horGridY][horGridX] === 1) {
+            horGridLocation = {
+                x: Math.floor(horIntersectionX),
+                y: Math.floor(horIntersectionY) + (isFacingUp ? -1 : 0)
+            };
+            if (isOutsideMaze(maze, horGridLocation) || maze[horGridLocation.y][horGridLocation.x] === 1) {
                 outerRay ? drawDebugPixel(horIntersectionX, horIntersectionY) : function () {
                 };
-                horCollision = [horIntersectionX, horIntersectionY];
+                horCollision = { x: horIntersectionX, y: horIntersectionY };
             }
             else {
                 outerRay ? drawDebugPixel(horIntersectionX, horIntersectionY, '#FF0000') : function () {
@@ -315,12 +366,14 @@ function getCollisionDistance(viewAngle, outerRay) {
             }
             vertIntersectionX = initialVertIntersectionX + (verticalOffsetX || 0) * intersectionOffset;
             vertIntersectionY = initialVertIntersectionY + (verticalOffsetY || 0) * intersectionOffset;
-            vertGridX = Math.floor(vertIntersectionX) + (isFacingRight ? 0 : -1);
-            vertGridY = Math.floor(vertIntersectionY);
-            if (areOutsideMaze(vertGridX, vertGridY) || maze[vertGridY][vertGridX] === 1) {
+            vertGridLocation = {
+                x: Math.floor(vertIntersectionX) + (isFacingRight ? 0 : -1),
+                y: Math.floor(vertIntersectionY)
+            };
+            if (isOutsideMaze(maze, vertGridLocation) || maze[vertGridLocation.y][vertGridLocation.x] === 1) {
                 outerRay ? drawDebugPixel(vertIntersectionX, vertIntersectionY) : function () {
                 };
-                vertCollision = [vertIntersectionX, vertIntersectionY];
+                vertCollision = { x: vertIntersectionX, y: vertIntersectionY };
             }
             else {
                 outerRay ? drawDebugPixel(vertIntersectionX, vertIntersectionY, '#FF0000') : function () {
@@ -329,21 +382,16 @@ function getCollisionDistance(viewAngle, outerRay) {
         }
         intersectionOffset++;
     }
-    var horDistance = getSquareDistance(playerX, playerY, horCollision[0], horCollision[1]);
-    var vertDistance = getSquareDistance(playerX, playerY, vertCollision[0], vertCollision[1]);
+    var horDistance = getSquareDistance(playerX, playerY, horCollision.x, horCollision.y);
+    var vertDistance = getSquareDistance(playerX, playerY, vertCollision.x, vertCollision.y);
     var closestCollision = horDistance < vertDistance ? horCollision : vertCollision;
-    outerRay ? drawDebugPixel(closestCollision[0], closestCollision[1], '#00FF00') : function () {
+    outerRay ? drawDebugPixel(closestCollision.x, closestCollision.y, '#00FF00') : function () {
     };
-    drawDebugLine(playerX, playerY, closestCollision[0], closestCollision[1]);
+    drawDebugLine(playerX, playerY, closestCollision.x, closestCollision.y);
     if (!closestCollision) {
         throw new Error('intersection is null');
     }
-    var directDistance = Math.sqrt(getSquareDistance(playerX, playerY, closestCollision[0], closestCollision[1]));
-    var perpendicularDistance = directDistance * cos((viewAngle - playerAngle + 360) % 360);
-    // const perpendicularDistance = (intersection[0] - playerX) * cos(playerAngle) +
-    // 	(playerY - intersection[1]) * sin(playerAngle);
-    var isAtMazeIntersection = closestCollision[0] % 1 < verticalWallEpsilon && closestCollision[1] % 1 < verticalWallEpsilon;
-    return [perpendicularDistance, isAtMazeIntersection];
+    return closestCollision;
 }
 var mapRange = function (val, in_min, in_max, out_min, out_max) {
     return (val - in_min) / (in_max - in_min) * (out_max - out_min) + out_min;
@@ -365,28 +413,69 @@ function drawWalls() {
     console.log('player angle: ', playerAngle);
     var startAngle = (playerAngle - viewAngleWidth / 2 + 360) % 360;
     var raytraceStepAngle = viewAngleWidth / W;
+    var anglesCollisionsAndDistances = [];
     for (var i = 0; i < W; i += 1) {
         var viewAngle = (startAngle + raytraceStepAngle * i + 360) % 360;
-        var _a = getCollisionDistance(viewAngle, i === 0 || i >= W - 1), collisionDistance = _a[0], isMazeIntersection = _a[1];
-        if (collisionDistance) {
-            // 64 => 240
-            // 5 * 64 => 120
-            // let wallHeight = mapRange(Math.sqrt(collisionDistance), 0.3, Math.sqrt(MAX_DISTANCE), 160, 10);
-            var wallHeight = 160 / collisionDistance;
-            if (isMazeIntersection) {
-                // draw line
-                drawVerticalLine(i, Math.round((H - wallHeight) / 2), Math.round((H - wallHeight) / 2 + wallHeight));
+        var collision = getCollisionDistance(viewAngle, i === 0 || i >= W - 1);
+        var directDistance = Math.sqrt(getSquareDistance(playerX, playerY, collision.x, collision.y));
+        var perpendicularDistance = directDistance * cos((viewAngle - playerAngle + 360) % 360);
+        anglesCollisionsAndDistances.push({
+            angle: viewAngle,
+            collision: collision,
+            distance: perpendicularDistance,
+            shouldDrawWall: false
+        });
+    }
+    // Identify which rays should also draw a vertical line to identify corners
+    // Find unique intersection point in the maze which are closest to each collision
+    var intersectionPoints = {};
+    anglesCollisionsAndDistances.forEach(function (angCollDis) {
+        var intersectionX = Math.round(angCollDis.collision.x);
+        var intersectionY = Math.round(angCollDis.collision.y);
+        intersectionPoints[intersectionX + ';' + intersectionY] = { x: intersectionX, y: intersectionY };
+    });
+    // Identify if the intersection should cause a wall line to be displayed or if it is part of a straight wall
+    var cornerIntersectionPoints = [];
+    Object.keys(intersectionPoints).forEach(function (intersectionKey) {
+        var intersection = intersectionPoints[intersectionKey];
+        var topLeftCell = maze[intersection.y - 1][intersection.x - 1];
+        var topRightCell = maze[intersection.y - 1][intersection.x];
+        var bottomLeftCell = maze[intersection.y][intersection.x - 1];
+        var bottomRightCell = maze[intersection.y][intersection.x];
+        // Generate corner key: eg: 1100 or 1010
+        var cornerKey = (topLeftCell === 1 ? '1' : '0') +
+            (topRightCell === 1 ? '1' : '0') +
+            (bottomLeftCell === 1 ? '1' : '0') +
+            (bottomRightCell === 1 ? '1' : '0');
+        var shouldDrawWall = CORNERS[cornerKey];
+        if (shouldDrawWall) {
+            cornerIntersectionPoints.push(intersection);
+        }
+    });
+    // Find the closest collision to each corner intersection
+    cornerIntersectionPoints.forEach(function (intersection) {
+        var shortestDistance = 100000;
+        var closestCollisionIndex = 0;
+        anglesCollisionsAndDistances.forEach(function (collisionInfo, index) {
+            var distance = Math.abs(intersection.x - collisionInfo.collision.x) + Math.abs(intersection.y - collisionInfo.collision.y);
+            if (distance < shortestDistance) {
+                closestCollisionIndex = index;
+                shortestDistance = distance;
             }
-            else {
-                // draw top and bottom of the wall
-                drawPixel(i, Math.round((H - wallHeight) / 2));
-                drawPixel(i, Math.round((H - wallHeight) / 2 + wallHeight));
-            }
+        });
+        anglesCollisionsAndDistances[closestCollisionIndex].shouldDrawWall = true;
+    });
+    // Draw the walls
+    anglesCollisionsAndDistances.forEach(function (collisionInfo, index) {
+        var wallHeight = screenHeight / collisionInfo.distance;
+        if (collisionInfo.shouldDrawWall) {
+            drawVerticalLine(index, Math.round((H - wallHeight) / 2), Math.round((H - wallHeight) / 2 + wallHeight));
         }
         else {
-            console.error('failed to find an intersection');
+            drawPixel(index, Math.round((H - wallHeight) / 2));
+            drawPixel(index, Math.round((H - wallHeight) / 2 + wallHeight));
         }
-    }
+    });
 }
 function isInsideWall(playerX, playerY) {
     return maze[Math.floor(playerY)][Math.floor(playerX)] === MazeElement.WALL;
@@ -416,6 +505,85 @@ function movePlayer(deltaX, deltaY) {
         playerY = newPlayerY;
         return;
     }
+}
+function getUnvisitedNeighbors(maze, currentPosition) {
+    var neighbors = [
+        { x: currentPosition.x - 2, y: currentPosition.y },
+        { x: currentPosition.x, y: currentPosition.y - 2 },
+        { x: currentPosition.x + 2, y: currentPosition.y },
+        { x: currentPosition.x, y: currentPosition.y + 2 },
+    ];
+    return neighbors.filter(function (neighbor) {
+        return !isOutsideMaze(maze, neighbor) && maze[neighbor.y][neighbor.x] === MazeElement.UNVISITED_EMPTY;
+    });
+}
+/**
+ * Generate random number inside the interval [min, max]
+ * min and max included
+ * @param min
+ * @param max
+ */
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1) + min);
+}
+/**
+ * Generate a maze using a depth first search algorthm with backtracking
+ * https://en.wikipedia.org/wiki/Maze_generation_algorithm
+ * 1. Choose the initial cell, mark it as visited and push it to the stack
+ * 2. While the stack is not empty
+ *      1. Pop a cell from the stack and make it a current cell
+ *      2. If the current cell has any neighbours which have not been visited
+ *            1. Push the current cell to the stack
+ *            2. Choose one of the unvisited neighbours
+ *            3. Remove the wall between the current cell and the chosen cell
+ *            4. Mark the chosen cell as visited and push it to the stack
+ * @param width
+ * @param height
+ */
+function generateMaze(width, height) {
+    var generatedMaze = [];
+    // Init maze like:
+    // 111111111
+    // 101010101
+    // 111111111
+    // 101010101
+    // 111111111
+    // 101010101
+    // 111111111
+    for (var row = 0; row < height; row++) {
+        generatedMaze[row] = [];
+        for (var col = 0; col < width; col++) {
+            if (row % 2 === 0 || col % 2 === 0) {
+                generatedMaze[row].push(MazeElement.WALL);
+            }
+            else {
+                generatedMaze[row].push(MazeElement.UNVISITED_EMPTY); // Empty not yet visited, we'll switch this to 0 once we visit the cell during the algorithm
+            }
+        }
+    }
+    // Remove hedges between empty cells based on maze generation algorithm
+    var stack = [];
+    var currentPosition = { x: 1, y: 1 };
+    generatedMaze[currentPosition.y][currentPosition.x] = 0;
+    stack.push(currentPosition);
+    var unvisitedNeighbors;
+    while (stack.length) {
+        currentPosition = stack.pop();
+        unvisitedNeighbors = getUnvisitedNeighbors(generatedMaze, currentPosition);
+        if (unvisitedNeighbors.length) {
+            stack.push(currentPosition);
+            var unvisitedNeighbor = unvisitedNeighbors[randomInt(0, unvisitedNeighbors.length - 1)];
+            // Remove hedge
+            generatedMaze[(unvisitedNeighbor.y + currentPosition.y) / 2][(unvisitedNeighbor.x + currentPosition.x) / 2] = 0;
+            // Mark the neighbor as visited
+            generatedMaze[unvisitedNeighbor.y][unvisitedNeighbor.x] = 0;
+            stack.push(unvisitedNeighbor);
+        }
+    }
+    // Set start and endpoint
+    generatedMaze[1][1] = MazeElement.PLAYER;
+    generatedMaze[height - 2][width - 2] = MazeElement.END;
+    return generatedMaze;
 }
 var lastPlayerX = undefined;
 var lastPlayerY = undefined;
