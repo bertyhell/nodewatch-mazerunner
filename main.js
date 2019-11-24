@@ -1,22 +1,5 @@
 "use strict";
 // const isBangle = process && process.env && process.env.BOARD === 'BANGLEJS';
-// Game variables
-var mazeWidth = 9;
-var mazeHeight = 6;
-var debugCellSize = 40;
-var screenWidth = 240;
-var screenHeight = 160;
-var playerX = 1.5; // TODO get this from the maze (position of "2")
-var playerY = 1.5;
-var playerAngle = 90;
-var viewAngleWidth = 90;
-var angleStep = 5;
-var playerStepSize = 0.1;
-// Computed values
-var mazeHorCells = mazeWidth * 2 + 1;
-var mazeVerCells = mazeHeight * 2 + 1;
-var debugWidth = mazeHorCells * 40;
-var debugHeight = mazeVerCells * 40;
 var MazeElement;
 (function (MazeElement) {
     MazeElement[MazeElement["UNVISITED_EMPTY"] = -1] = "UNVISITED_EMPTY";
@@ -25,6 +8,34 @@ var MazeElement;
     MazeElement[MazeElement["PLAYER"] = 2] = "PLAYER";
     MazeElement[MazeElement["END"] = 3] = "END";
 })(MazeElement || (MazeElement = {}));
+// Game variables
+var mazeWidth = 30;
+var mazeHeight = 20;
+var debugCellSize = 20;
+var screenWidth = 240;
+var screenHeight = 160;
+var viewAngleWidth = 70;
+var angleStep = 7;
+var playerStepSize = 0.1;
+// Computed values
+var mazeHorCells = mazeWidth * 2 + 1;
+var mazeVerCells = mazeHeight * 2 + 1;
+var debugWidth = mazeHorCells * debugCellSize;
+var debugHeight = mazeVerCells * debugCellSize;
+var playerX = 1.5;
+var playerY = 1.5;
+var maze = generateMaze(mazeHorCells, mazeVerCells);
+// let maze: MazeElement[][] = [
+// 	[1, 1, 1, 1, 1, 1, 1],
+// 	[1, 0, 0, 0, 1, 0, 1],
+// 	[1, 0, 1, 0, 0, 0, 1],
+// 	[1, 0, 1, 0, 1, 0, 1],
+// 	[1, 2, 1, 0, 1, 3, 1],
+// 	[1, 1, 1, 1, 1, 1, 1]
+// ];
+// point te player towards the hallway instead of towards a wall
+// Checks if the cell to the right of the player is a wall, if so, point the player down (90), else to the right (0)
+var playerAngle = maze[1][2] === MazeElement.WALL ? 90 : 0;
 // Determines if we should draw a vertical wall line for the given intersections at the center of these 4 maze cells:
 // +-----+
 // |0 |1 |
@@ -65,15 +76,6 @@ var CORNERS = {
     '1110': true,
     '1111': false
 };
-var maze = generateMaze(mazeHorCells, mazeVerCells);
-// let maze: MazeElement[][] = [
-// 	[1, 1, 1, 1, 1, 1, 1],
-// 	[1, 0, 0, 0, 1, 0, 1],
-// 	[1, 0, 1, 0, 0, 0, 1],
-// 	[1, 0, 1, 0, 1, 0, 1],
-// 	[1, 2, 1, 0, 1, 3, 1],
-// 	[1, 1, 1, 1, 1, 1, 1]
-// ];
 var running = true;
 var Bangle = {
     setLCDMode: function (type) {

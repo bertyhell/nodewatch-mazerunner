@@ -1,25 +1,5 @@
 // const isBangle = process && process.env && process.env.BOARD === 'BANGLEJS';
 
-// Game variables
-let mazeWidth = 9;
-let mazeHeight = 6;
-let debugCellSize = 40;
-let screenWidth = 240;
-let screenHeight = 160;
-let playerX = 1.5; // TODO get this from the maze (position of "2")
-let playerY = 1.5;
-let playerAngle = 90;
-let viewAngleWidth = 90;
-let angleStep = 5;
-let playerStepSize = 0.1;
-
-// Computed values
-let mazeHorCells = mazeWidth * 2 + 1;
-let mazeVerCells = mazeHeight * 2 + 1;
-
-const debugWidth = mazeHorCells * 40;
-const debugHeight = mazeVerCells * 40;
-
 enum MazeElement {
 	UNVISITED_EMPTY = -1,
 	EMPTY = 0,
@@ -27,6 +7,40 @@ enum MazeElement {
 	PLAYER = 2,
 	END = 3,
 }
+
+// Game variables
+let mazeWidth = 30;
+let mazeHeight = 20;
+let debugCellSize = 20;
+let screenWidth = 240;
+let screenHeight = 160;
+let viewAngleWidth = 70;
+let angleStep = 7;
+let playerStepSize = 0.1;
+
+// Computed values
+let mazeHorCells = mazeWidth * 2 + 1;
+let mazeVerCells = mazeHeight * 2 + 1;
+
+const debugWidth = mazeHorCells * debugCellSize;
+const debugHeight = mazeVerCells * debugCellSize;
+
+let playerX = 1.5;
+let playerY = 1.5;
+
+let maze: MazeElement[][] = generateMaze(mazeHorCells, mazeVerCells);
+// let maze: MazeElement[][] = [
+// 	[1, 1, 1, 1, 1, 1, 1],
+// 	[1, 0, 0, 0, 1, 0, 1],
+// 	[1, 0, 1, 0, 0, 0, 1],
+// 	[1, 0, 1, 0, 1, 0, 1],
+// 	[1, 2, 1, 0, 1, 3, 1],
+// 	[1, 1, 1, 1, 1, 1, 1]
+// ];
+
+// point te player towards the hallway instead of towards a wall
+// Checks if the cell to the right of the player is a wall, if so, point the player down (90), else to the right (0)
+let playerAngle = maze[1][2] === MazeElement.WALL ? 90 : 0;
 
 // Determines if we should draw a vertical wall line for the given intersections at the center of these 4 maze cells:
 // +-----+
@@ -68,16 +82,6 @@ const CORNERS: { [cornerKey: string]: boolean } = {
 	'1110': true,
 	'1111': false,
 };
-
-let maze: MazeElement[][] = generateMaze(mazeHorCells, mazeVerCells);
-// let maze: MazeElement[][] = [
-// 	[1, 1, 1, 1, 1, 1, 1],
-// 	[1, 0, 0, 0, 1, 0, 1],
-// 	[1, 0, 1, 0, 0, 0, 1],
-// 	[1, 0, 1, 0, 1, 0, 1],
-// 	[1, 2, 1, 0, 1, 3, 1],
-// 	[1, 1, 1, 1, 1, 1, 1]
-// ];
 
 let running = true;
 
