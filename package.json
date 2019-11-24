@@ -1,0 +1,26 @@
+{
+  "name": "nodewatch-maze-runner",
+  "version": "0.1.0",
+  "description": "Maze runner game for the bangle watch",
+  "main": "main.js",
+  "dependencies": {
+    "axel": "0.0.3",
+    "canvas": "^2.6.0",
+    "drawille": "^1.1.1",
+    "live-server": "^1.2.1",
+    "typescript": "^3.7.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "live-server .",
+    "build": "tsc"
+  },
+  "keywords": [
+    "bangle",
+    "wolf3d",
+    "game",
+    "maze"
+  ],
+  "author": "Bert Verhelst",
+  "license": "ISC"
+}
