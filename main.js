@@ -8,9 +8,16 @@ var MazeElement;
     MazeElement[MazeElement["PLAYER"] = 2] = "PLAYER";
     MazeElement[MazeElement["END"] = 3] = "END";
 })(MazeElement || (MazeElement = {}));
+var Quadrant;
+(function (Quadrant) {
+    Quadrant[Quadrant["BottomRight"] = 0] = "BottomRight";
+    Quadrant[Quadrant["BottomLeft"] = 1] = "BottomLeft";
+    Quadrant[Quadrant["TopLeft"] = 2] = "TopLeft";
+    Quadrant[Quadrant["TopRight"] = 3] = "TopRight";
+})(Quadrant || (Quadrant = {}));
 // Game variables
-var mazeWidth = 30;
-var mazeHeight = 20;
+var mazeWidth = 20;
+var mazeHeight = 15;
 var debugCellSize = 20;
 var screenWidth = 240;
 var screenHeight = 160;
@@ -130,14 +137,38 @@ var g = {
     getWidth: function () { return screenWidth; },
     getHeight: function () { return screenHeight; }
 };
+/**
+ * Generates a lookup table for trigonometric functions
+ * The keys will be the degrees times 10, so we can easily round to 0.1 degree
+ * @param trigonometricFunction
+ */
+function getLookupTable(trigonometricFunction) {
+    var lookup = {};
+    for (var i = 0; i <= 360; i += 1) {
+        lookup[Math.round(i)] = trigonometricFunction(i / 180 * Math.PI);
+    }
+    return lookup;
+}
+var cosLookupTable = getLookupTable(Math.cos);
+var sinLookupTable = getLookupTable(Math.sin);
+var tanLookupTable = getLookupTable(Math.tan);
+function lookupAndInterpolate(deg, lookupTable) {
+    var lowerDeg = Math.floor(deg);
+    var upperDeg = Math.ceil(deg + 0.00001);
+    var lowerTri = lookupTable[lowerDeg];
+    var upperTri = lookupTable[upperDeg];
+    var diffDeg = upperDeg - lowerDeg;
+    var diffCos = upperTri - lowerTri;
+    return lowerTri + Math.abs(deg - lowerDeg) / diffDeg * diffCos;
+}
 function cos(deg) {
-    return Math.cos(((deg + 360) % 360) / 180 * Math.PI);
+    return lookupAndInterpolate(deg, cosLookupTable);
 }
 function sin(deg) {
-    return Math.sin(((deg + 360) % 360) / 180 * Math.PI);
+    return lookupAndInterpolate(deg, sinLookupTable);
 }
 function tan(deg) {
-    return Math.tan(((deg + 360) % 360) / 180 * Math.PI);
+    return lookupAndInterpolate(deg, tanLookupTable);
 }
 var BTN1 = {
     read: function () { return buttons.BTN1.active; }
@@ -218,20 +249,19 @@ var buttons = {
 globals.Bangle.setLCDMode('doublebuffered');
 var W = globals.g.getWidth();
 var H = globals.g.getHeight();
-// g.setFontAlign(0,-1);
 console.log('screen: ', W, H);
-var MAX_DISTANCE = Math.sqrt((maze.length - 2) *
-    (maze.length - 2) +
-    (maze[0].length - 2) *
-        (maze[0].length - 2));
-function gameStop() {
-    running = false;
-    globals.g.clear();
-    globals.g.drawString('Game Over!', 120, (H - 6) / 2);
-    globals.g.flip();
-}
-function gameStart() {
-    running = true;
+// function gameStop() {
+// 	running = false;
+// 	globals.g.clear();
+// 	globals.g.drawString('Game Over!', 120, (H - 6) / 2);
+// 	globals.g.flip();
+// }
+//
+// function gameStart() {
+// 	running = true;
+// }
+function clampDeg(deg) {
+    return (deg + 360) % 360;
 }
 function drawDebugGrid() {
     contextDebug.fillStyle = '#FFFFFF';
@@ -242,13 +272,13 @@ function drawDebugGrid() {
         for (var col = 0; col < maze[0].length; col++) {
             var mazeItem = maze[row][col];
             contextDebug.strokeStyle = '#333333';
-            if (mazeItem === 1) {
+            if (mazeItem === MazeElement.WALL) {
                 contextDebug.fillStyle = '#000000';
             }
-            else if (mazeItem === 3) {
+            else if (mazeItem === MazeElement.END) {
                 contextDebug.fillStyle = '#00FF00';
             }
-            else {
+            else { // Empty
                 contextDebug.fillStyle = '#FFFFFF';
             }
             contextDebug.fillRect(col * debugCellSize, row * debugCellSize, debugCellSize, debugCellSize);
@@ -262,11 +292,11 @@ function drawDebugGrid() {
     contextDebug.strokeStyle = '#666666';
     contextDebug.beginPath();
     contextDebug.moveTo(playerX * debugCellSize, playerY * debugCellSize);
-    contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(playerAngle - viewAngleWidth / 2), playerY * debugCellSize + 1000 * sin(playerAngle - viewAngleWidth / 2));
+    contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(clampDeg(playerAngle - viewAngleWidth / 2)), playerY * debugCellSize + 1000 * sin(clampDeg(playerAngle - viewAngleWidth / 2)));
     contextDebug.stroke();
     contextDebug.beginPath();
     contextDebug.moveTo(playerX * debugCellSize, playerY * debugCellSize);
-    contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(playerAngle + viewAngleWidth / 2), playerY * debugCellSize + 1000 * sin(playerAngle + viewAngleWidth / 2));
+    contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(clampDeg(playerAngle + viewAngleWidth / 2)), playerY * debugCellSize + 1000 * sin(clampDeg(playerAngle + viewAngleWidth / 2)));
     contextDebug.stroke();
 }
 function drawDebugPixel(x, y, color) {
@@ -313,7 +343,7 @@ function getCollisionDistance(viewAngle, outerRay) {
     var vertIntersectionY;
     var vertGridLocation;
     while (!horCollision || !vertCollision) {
-        isFacingUp = quadrant === 2 || quadrant === 3;
+        isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
         // horizontal intersection
         if (!horCollision) {
             if (!initialHorIntersectionX) {
@@ -340,7 +370,7 @@ function getCollisionDistance(viewAngle, outerRay) {
                 x: Math.floor(horIntersectionX),
                 y: Math.floor(horIntersectionY) + (isFacingUp ? -1 : 0)
             };
-            if (isOutsideMaze(maze, horGridLocation) || maze[horGridLocation.y][horGridLocation.x] === 1) {
+            if (isOutsideMaze(maze, horGridLocation) || maze[horGridLocation.y][horGridLocation.x] === MazeElement.WALL) {
                 outerRay ? drawDebugPixel(horIntersectionX, horIntersectionY) : function () {
                 };
                 horCollision = { x: horIntersectionX, y: horIntersectionY };
@@ -351,7 +381,7 @@ function getCollisionDistance(viewAngle, outerRay) {
             }
         }
         // Vertical intersection
-        isFacingRight = quadrant === 0 || quadrant === 3;
+        isFacingRight = quadrant === Quadrant.BottomRight || quadrant === Quadrant.TopRight;
         if (!vertCollision) {
             if (!initialVertIntersectionX) {
                 if (isFacingRight) {
@@ -372,7 +402,7 @@ function getCollisionDistance(viewAngle, outerRay) {
                 x: Math.floor(vertIntersectionX) + (isFacingRight ? 0 : -1),
                 y: Math.floor(vertIntersectionY)
             };
-            if (isOutsideMaze(maze, vertGridLocation) || maze[vertGridLocation.y][vertGridLocation.x] === 1) {
+            if (isOutsideMaze(maze, vertGridLocation) || maze[vertGridLocation.y][vertGridLocation.x] === MazeElement.WALL) {
                 outerRay ? drawDebugPixel(vertIntersectionX, vertIntersectionY) : function () {
                 };
                 vertCollision = { x: vertIntersectionX, y: vertIntersectionY };
@@ -395,11 +425,7 @@ function getCollisionDistance(viewAngle, outerRay) {
     }
     return closestCollision;
 }
-var mapRange = function (val, in_min, in_max, out_min, out_max) {
-    return (val - in_min) / (in_max - in_min) * (out_max - out_min) + out_min;
-};
 function drawPixel(x, y) {
-    // console.log('drawPixel: ', x, y);
     if (x >= 0 && x < W && y >= 0 && y < H) {
         globals.g.setPixel(x, y);
     }
@@ -410,17 +436,17 @@ function drawVerticalLine(x, y1, y2) {
     }
 }
 function drawWalls() {
-    console.log('--------------------------');
+    // console.log('--------------------------');
     drawDebugGrid();
-    console.log('player angle: ', playerAngle);
-    var startAngle = (playerAngle - viewAngleWidth / 2 + 360) % 360;
+    // console.log('player angle: ', playerAngle);
+    var startAngle = clampDeg(playerAngle - viewAngleWidth / 2);
     var raytraceStepAngle = viewAngleWidth / W;
     var anglesCollisionsAndDistances = [];
     for (var i = 0; i < W; i += 1) {
-        var viewAngle = (startAngle + raytraceStepAngle * i + 360) % 360;
+        var viewAngle = clampDeg(startAngle + raytraceStepAngle * i);
         var collision = getCollisionDistance(viewAngle, i === 0 || i >= W - 1);
         var directDistance = Math.sqrt(getSquareDistance(playerX, playerY, collision.x, collision.y));
-        var perpendicularDistance = directDistance * cos((viewAngle - playerAngle + 360) % 360);
+        var perpendicularDistance = directDistance * cos(clampDeg(viewAngle - playerAngle));
         anglesCollisionsAndDistances.push({
             angle: viewAngle,
             collision: collision,
@@ -445,10 +471,10 @@ function drawWalls() {
         var bottomLeftCell = maze[intersection.y][intersection.x - 1];
         var bottomRightCell = maze[intersection.y][intersection.x];
         // Generate corner key: eg: 1100 or 1010
-        var cornerKey = (topLeftCell === 1 ? '1' : '0') +
-            (topRightCell === 1 ? '1' : '0') +
-            (bottomLeftCell === 1 ? '1' : '0') +
-            (bottomRightCell === 1 ? '1' : '0');
+        var cornerKey = (topLeftCell === MazeElement.WALL ? '1' : '0') +
+            (topRightCell === MazeElement.WALL ? '1' : '0') +
+            (bottomLeftCell === MazeElement.WALL ? '1' : '0') +
+            (bottomRightCell === MazeElement.WALL ? '1' : '0');
         var shouldDrawWall = CORNERS[cornerKey];
         if (shouldDrawWall) {
             cornerIntersectionPoints.push(intersection);
@@ -594,31 +620,28 @@ function onFrame() {
     // let t = getTime();
     // let d = (lastFrame===undefined)?0:(t-lastFrame)*20;
     // lastFrame = t;
-    // if (!isBangle) {
-    // 	playerAngle = ((playerAngle + 1) + 360) % 360;
-    // }
     if (globals.BTN4.read()) {
-        console.log('left');
-        playerAngle = ((playerAngle - angleStep) + 360) % 360;
+        // console.log('left');
+        playerAngle = clampDeg(playerAngle - angleStep);
     }
     if (globals.BTN5.read()) {
-        console.log('right');
-        playerAngle = ((playerAngle + angleStep) + 360) % 360;
+        // console.log('right');
+        playerAngle = clampDeg(playerAngle + angleStep);
     }
     if (globals.BTN1.read()) {
-        console.log('forward');
+        // console.log('forward');
         var quadrant = Math.floor(playerAngle / 90);
-        var isFacingUp = quadrant === 2 || quadrant === 3;
-        var isFacingRight = quadrant === 0 || quadrant === 3;
+        var isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
+        var isFacingRight = quadrant === Quadrant.TopRight || quadrant === Quadrant.BottomRight;
         var playerXDelta = Math.abs(cos(playerAngle) * playerStepSize) * (isFacingRight ? 1 : -1);
         var playerYDelta = Math.abs(sin(playerAngle) * playerStepSize) * (isFacingUp ? -1 : 1);
         movePlayer(playerXDelta, playerYDelta);
     }
     if (globals.BTN2.read()) {
-        console.log('backward');
+        // console.log('backward');
         var quadrant = Math.floor(playerAngle / 90);
-        var isFacingUp = quadrant === 2 || quadrant === 3;
-        var isFacingRight = quadrant === 0 || quadrant === 3;
+        var isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
+        var isFacingRight = quadrant === Quadrant.TopRight || quadrant === Quadrant.BottomRight;
         var playerXDelta = Math.abs(cos(playerAngle) * playerStepSize) * (isFacingRight ? -1 : 1);
         var playerYDelta = Math.abs(sin(playerAngle) * playerStepSize) * (isFacingUp ? 1 : -1);
         movePlayer(playerXDelta, playerYDelta);
@@ -630,11 +653,11 @@ function onFrame() {
     if (lastPlayerX !== playerX ||
         lastPlayerY !== playerY ||
         lastPlayerAngle !== playerAngle) {
-        console.log('start draw cycle');
+        // console.log('start draw cycle');
         globals.g.clear();
         drawWalls();
         globals.g.flip();
-        console.log('finished draw cycle');
+        // console.log('finished draw cycle');
     }
     lastPlayerX = playerX;
     lastPlayerY = playerY;

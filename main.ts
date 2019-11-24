@@ -8,9 +8,16 @@ enum MazeElement {
 	END = 3,
 }
 
+enum Quadrant {
+	BottomRight = 0,
+	BottomLeft = 1,
+	TopLeft = 2,
+	TopRight = 3,
+}
+
 // Game variables
-let mazeWidth = 30;
-let mazeHeight = 20;
+let mazeWidth = 20;
+let mazeHeight = 15;
 let debugCellSize = 20;
 let screenWidth = 240;
 let screenHeight = 160;
@@ -139,16 +146,43 @@ const g = {
 	getHeight: () => screenHeight,
 };
 
-function cos(deg: number) {
-	return Math.cos(((deg + 360) % 360) / 180 * Math.PI);
+/**
+ * Generates a lookup table for trigonometric functions
+ * The keys will be the degrees times 10, so we can easily round to 0.1 degree
+ * @param trigonometricFunction
+ */
+function getLookupTable(trigonometricFunction: (rad: number) => number): {[deg: number]: number} {
+	const lookup: {[deg: number]: number} = {};
+	for (let i = 0; i <= 360; i+= 1) {
+		lookup[Math.round(i)] = trigonometricFunction(i / 180 * Math.PI);
+	}
+	return lookup;
 }
 
-function sin(deg: number) {
-	return Math.sin(((deg + 360) % 360) / 180 * Math.PI);
+const cosLookupTable: {[deg: number]: number} = getLookupTable(Math.cos);
+const sinLookupTable: {[deg: number]: number} = getLookupTable(Math.sin);
+const tanLookupTable: {[deg: number]: number} = getLookupTable(Math.tan);
+
+function lookupAndInterpolate(deg: number, lookupTable: {[deg: number]: number}): number {
+	const lowerDeg = Math.floor(deg);
+	const upperDeg = Math.ceil(deg + 0.00001);
+	const lowerTri = lookupTable[lowerDeg];
+	const upperTri = lookupTable[upperDeg];
+	const diffDeg = upperDeg - lowerDeg;
+	const diffCos = upperTri - lowerTri;
+	return lowerTri + Math.abs(deg - lowerDeg) / diffDeg * diffCos;
 }
 
-function tan(deg: number) {
-	return Math.tan(((deg + 360) % 360) / 180 * Math.PI);
+function cos(deg: number): number {
+	return lookupAndInterpolate(deg, cosLookupTable);
+}
+
+function sin(deg: number): number {
+	return lookupAndInterpolate(deg, sinLookupTable);
+}
+
+function tan(deg: number): number {
+	return lookupAndInterpolate(deg, tanLookupTable);
 }
 
 const BTN1 = {
@@ -264,26 +298,22 @@ globals.Bangle.setLCDMode('doublebuffered');
 
 let W = globals.g.getWidth();
 let H = globals.g.getHeight();
-// g.setFontAlign(0,-1);
 
 console.log('screen: ', W, H);
 
-let MAX_DISTANCE = Math.sqrt(
-	(maze.length - 2) *
-	(maze.length - 2) +
-	(maze[0].length - 2) *
-	(maze[0].length - 2)
-);
+// function gameStop() {
+// 	running = false;
+// 	globals.g.clear();
+// 	globals.g.drawString('Game Over!', 120, (H - 6) / 2);
+// 	globals.g.flip();
+// }
+//
+// function gameStart() {
+// 	running = true;
+// }
 
-function gameStop() {
-	running = false;
-	globals.g.clear();
-	globals.g.drawString('Game Over!', 120, (H - 6) / 2);
-	globals.g.flip();
-}
-
-function gameStart() {
-	running = true;
+function clampDeg(deg: number): number {
+	return (deg + 360) % 360;
 }
 
 function drawDebugGrid() {
@@ -296,11 +326,11 @@ function drawDebugGrid() {
 		for (let col = 0; col < maze[0].length; col++) {
 			const mazeItem = maze[row][col];
 			contextDebug.strokeStyle = '#333333';
-			if (mazeItem === 1) {
+			if (mazeItem === MazeElement.WALL) {
 				contextDebug.fillStyle = '#000000';
-			} else if (mazeItem === 3) {
+			} else if (mazeItem === MazeElement.END) {
 				contextDebug.fillStyle = '#00FF00';
-			} else {
+			} else { // Empty
 				contextDebug.fillStyle = '#FFFFFF';
 			}
 			contextDebug.fillRect(col * debugCellSize, row * debugCellSize, debugCellSize, debugCellSize);
@@ -316,11 +346,11 @@ function drawDebugGrid() {
 	contextDebug.strokeStyle = '#666666';
 	contextDebug.beginPath();
 	contextDebug.moveTo(playerX * debugCellSize, playerY * debugCellSize);
-	contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(playerAngle - viewAngleWidth / 2), playerY * debugCellSize + 1000 * sin(playerAngle - viewAngleWidth / 2));
+	contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(clampDeg(playerAngle - viewAngleWidth / 2)), playerY * debugCellSize + 1000 * sin(clampDeg(playerAngle - viewAngleWidth / 2)));
 	contextDebug.stroke();
 	contextDebug.beginPath();
 	contextDebug.moveTo(playerX * debugCellSize, playerY * debugCellSize);
-	contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(playerAngle + viewAngleWidth / 2), playerY * debugCellSize + 1000 * sin(playerAngle + viewAngleWidth / 2));
+	contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(clampDeg(playerAngle + viewAngleWidth / 2)), playerY * debugCellSize + 1000 * sin(clampDeg(playerAngle + viewAngleWidth / 2)));
 	contextDebug.stroke();
 }
 
@@ -349,7 +379,7 @@ function isOutsideMaze(maze: MazeElement[][], location: Point): boolean {
  * https://www.permadi.com/tutorial/raycast/rayc7.html
  */
 function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
-	const quadrant = Math.floor(viewAngle / 90);
+	const quadrant: Quadrant = Math.floor(viewAngle / 90);
 
 	let horCollision: Point | undefined; // first intersection with a wall
 	let vertCollision: Point | undefined; // first intersection with a wall
@@ -372,7 +402,7 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 	let vertGridLocation: Point;
 
 	while (!horCollision || !vertCollision) {
-		isFacingUp = quadrant === 2 || quadrant === 3;
+		isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
 		// horizontal intersection
 		if (!horCollision) {
 			if (!initialHorIntersectionX) {
@@ -397,7 +427,7 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 				x: Math.floor(horIntersectionX),
 				y: Math.floor(horIntersectionY) + (isFacingUp ? -1 : 0),
 			};
-			if (isOutsideMaze(maze, horGridLocation) || maze[horGridLocation.y][horGridLocation.x] === 1) {
+			if (isOutsideMaze(maze, horGridLocation) || maze[horGridLocation.y][horGridLocation.x] === MazeElement.WALL) {
 				outerRay ? drawDebugPixel(horIntersectionX, horIntersectionY) : () => {
 				};
 				horCollision = { x: horIntersectionX, y: horIntersectionY };
@@ -408,7 +438,7 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 		}
 
 		// Vertical intersection
-		isFacingRight = quadrant === 0 || quadrant === 3;
+		isFacingRight = quadrant === Quadrant.BottomRight || quadrant === Quadrant.TopRight;
 
 		if (!vertCollision) {
 			if (!initialVertIntersectionX) {
@@ -430,7 +460,7 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 				x: Math.floor(vertIntersectionX) + (isFacingRight ? 0 : -1),
 				y: Math.floor(vertIntersectionY),
 			};
-			if (isOutsideMaze(maze, vertGridLocation) || maze[vertGridLocation.y][vertGridLocation.x] === 1) {
+			if (isOutsideMaze(maze, vertGridLocation) || maze[vertGridLocation.y][vertGridLocation.x] === MazeElement.WALL) {
 				outerRay ? drawDebugPixel(vertIntersectionX, vertIntersectionY) : () => {
 				};
 				vertCollision = { x: vertIntersectionX, y: vertIntersectionY };
@@ -455,12 +485,7 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 	return closestCollision;
 }
 
-const mapRange = (val: number, in_min: number, in_max: number, out_min: number, out_max: number) => {
-	return (val - in_min) / (in_max - in_min) * (out_max - out_min) + out_min;
-};
-
 function drawPixel(x: number, y: number) {
-	// console.log('drawPixel: ', x, y);
 	if (x >= 0 && x < W && y >= 0 && y < H) {
 		globals.g.setPixel(x, y);
 	}
@@ -480,19 +505,19 @@ interface CollisionInfo {
 }
 
 function drawWalls() {
-	console.log('--------------------------');
+	// console.log('--------------------------');
 	drawDebugGrid();
 
-	console.log('player angle: ', playerAngle);
+	// console.log('player angle: ', playerAngle);
 
-	const startAngle = (playerAngle - viewAngleWidth / 2 + 360) % 360;
+	const startAngle = clampDeg(playerAngle - viewAngleWidth / 2);
 	const raytraceStepAngle = viewAngleWidth / W;
 	const anglesCollisionsAndDistances: CollisionInfo[] = [];
 	for (let i = 0; i < W; i += 1) {
-		const viewAngle = (startAngle + raytraceStepAngle * i + 360) % 360;
+		const viewAngle = clampDeg(startAngle + raytraceStepAngle * i);
 		const collision: Point = getCollisionDistance(viewAngle, i === 0 || i >= W - 1);
 		const directDistance = Math.sqrt(getSquareDistance(playerX, playerY, collision.x, collision.y));
-		const perpendicularDistance = directDistance * cos((viewAngle - playerAngle + 360) % 360);
+		const perpendicularDistance = directDistance * cos(clampDeg(viewAngle - playerAngle));
 
 		anglesCollisionsAndDistances.push({
 			angle: viewAngle,
@@ -521,10 +546,10 @@ function drawWalls() {
 
 		// Generate corner key: eg: 1100 or 1010
 		const cornerKey: string =
-			(topLeftCell === 1 ? '1' : '0') +
-			(topRightCell === 1 ? '1' : '0') +
-			(bottomLeftCell === 1 ? '1' : '0') +
-			(bottomRightCell === 1 ? '1' : '0');
+			(topLeftCell === MazeElement.WALL ? '1' : '0') +
+			(topRightCell === MazeElement.WALL ? '1' : '0') +
+			(bottomLeftCell === MazeElement.WALL ? '1' : '0') +
+			(bottomRightCell === MazeElement.WALL ? '1' : '0');
 		const shouldDrawWall = CORNERS[cornerKey];
 		if (shouldDrawWall) {
 			cornerIntersectionPoints.push(intersection);
@@ -679,34 +704,30 @@ function onFrame() {
 	// let d = (lastFrame===undefined)?0:(t-lastFrame)*20;
 	// lastFrame = t;
 
-	// if (!isBangle) {
-	// 	playerAngle = ((playerAngle + 1) + 360) % 360;
-	// }
-
 	if (globals.BTN4.read()) {
-		console.log('left');
-		playerAngle = ((playerAngle - angleStep) + 360) % 360;
+		// console.log('left');
+		playerAngle = clampDeg(playerAngle - angleStep);
 	}
 	if (globals.BTN5.read()) {
-		console.log('right');
-		playerAngle = ((playerAngle + angleStep) + 360) % 360;
+		// console.log('right');
+		playerAngle = clampDeg(playerAngle + angleStep);
 	}
 	if (globals.BTN1.read()) {
-		console.log('forward');
+		// console.log('forward');
 
-		const quadrant = Math.floor(playerAngle / 90);
-		const isFacingUp = quadrant === 2 || quadrant === 3;
-		const isFacingRight = quadrant === 0 || quadrant === 3;
+		const quadrant: Quadrant = Math.floor(playerAngle / 90);
+		const isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
+		const isFacingRight = quadrant === Quadrant.TopRight || quadrant === Quadrant.BottomRight;
 		const playerXDelta = Math.abs(cos(playerAngle) * playerStepSize) * (isFacingRight ? 1 : -1);
 		const playerYDelta = Math.abs(sin(playerAngle) * playerStepSize) * (isFacingUp ? -1 : 1);
 		movePlayer(playerXDelta, playerYDelta);
 	}
 	if (globals.BTN2.read()) {
-		console.log('backward');
+		// console.log('backward');
 
-		const quadrant = Math.floor(playerAngle / 90);
-		const isFacingUp = quadrant === 2 || quadrant === 3;
-		const isFacingRight = quadrant === 0 || quadrant === 3;
+		const quadrant: Quadrant = Math.floor(playerAngle / 90);
+		const isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
+		const isFacingRight = quadrant === Quadrant.TopRight || quadrant === Quadrant.BottomRight;
 		const playerXDelta = Math.abs(cos(playerAngle) * playerStepSize) * (isFacingRight ? -1 : 1);
 		const playerYDelta = Math.abs(sin(playerAngle) * playerStepSize) * (isFacingUp ? 1 : -1);
 		movePlayer(playerXDelta, playerYDelta);
@@ -720,11 +741,11 @@ function onFrame() {
 	if (lastPlayerX !== playerX ||
 		lastPlayerY !== playerY ||
 		lastPlayerAngle !== playerAngle) {
-		console.log('start draw cycle');
+		// console.log('start draw cycle');
 		globals.g.clear();
 		drawWalls();
 		globals.g.flip();
-		console.log('finished draw cycle');
+		// console.log('finished draw cycle');
 	}
 
 	lastPlayerX = playerX;
