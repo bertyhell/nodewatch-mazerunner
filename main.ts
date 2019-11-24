@@ -1,6 +1,6 @@
 // const isBangle = process && process.env && process.env.BOARD === 'BANGLEJS';
 
-enum MazeElement {
+const enum MazeElement {
 	UNVISITED_EMPTY = -1,
 	EMPTY = 0,
 	WALL = 1,
@@ -8,7 +8,7 @@ enum MazeElement {
 	END = 3,
 }
 
-enum Quadrant {
+const enum Quadrant {
 	BottomRight = 0,
 	BottomLeft = 1,
 	TopLeft = 2,
@@ -16,18 +16,18 @@ enum Quadrant {
 }
 
 // Game variables
-let mazeWidth = 20;
-let mazeHeight = 15;
-let debugCellSize = 20;
-let screenWidth = 240;
-let screenHeight = 160;
-let viewAngleWidth = 70;
-let angleStep = 7;
-let playerStepSize = 0.1;
+const mazeWidth = 20;
+const mazeHeight = 15;
+const debugCellSize = 20;
+const screenWidth = 240;
+const screenHeight = 160;
+const viewAngleWidth = 70;
+const angleStep = 7;
+const playerStepSize = 0.1;
 
 // Computed values
-let mazeHorCells = mazeWidth * 2 + 1;
-let mazeVerCells = mazeHeight * 2 + 1;
+const mazeHorCells = mazeWidth * 2 + 1;
+const mazeVerCells = mazeHeight * 2 + 1;
 
 const debugWidth = mazeHorCells * debugCellSize;
 const debugHeight = mazeVerCells * debugCellSize;
@@ -35,7 +35,7 @@ const debugHeight = mazeVerCells * debugCellSize;
 let playerX = 1.5;
 let playerY = 1.5;
 
-let maze: MazeElement[][] = generateMaze(mazeHorCells, mazeVerCells);
+const maze: MazeElement[][] = generateMaze(mazeHorCells, mazeVerCells);
 // let maze: MazeElement[][] = [
 // 	[1, 1, 1, 1, 1, 1, 1],
 // 	[1, 0, 0, 0, 1, 0, 1],
@@ -92,99 +92,6 @@ const CORNERS: { [cornerKey: string]: boolean } = {
 
 let running = true;
 
-const Bangle = {
-	setLCDMode: (type: string) => {
-	},
-};
-
-let context: CanvasRenderingContext2D;
-let contextDebug: CanvasRenderingContext2D;
-window.onload = () => {
-	const canvas: HTMLCanvasElement | null = document.getElementById('canvas') as HTMLCanvasElement | null;
-
-	if (canvas) {
-		canvas.width = screenWidth;
-		canvas.height = screenHeight;
-		const tempContext = canvas.getContext('2d');
-		if (tempContext) {
-			context = tempContext;
-		} else {
-			console.error('Failed to get the 2d canvas context');
-		}
-	} else {
-		console.error('Failed to find canvas element');
-	}
-
-	const canvasDebug: HTMLCanvasElement | null = document.getElementById('canvas-debug') as HTMLCanvasElement | null;
-	if (canvasDebug) {
-		canvasDebug.width = debugWidth;
-		canvasDebug.height = debugHeight;
-		const tempContext = canvasDebug.getContext('2d');
-		if (tempContext) {
-			contextDebug = tempContext;
-		} else {
-			console.error('Failed to get the 2d canvas context for debug');
-		}
-	} else {
-		console.error('Failed to find canvas element for debug');
-	}
-};
-
-const g = {
-	setPixel: (x: number, y: number) => {
-		context.fillStyle = '#000000';
-		context.fillRect(x, y, 1, 1);
-	},
-	clear: () => {
-		context.fillStyle = '#EEEEEE';
-		context.fillRect(0, 0, screenWidth, screenHeight);
-		context.fillStyle = '#000000';
-	},
-	flip: () => {
-	},
-	getWidth: () => screenWidth,
-	getHeight: () => screenHeight,
-};
-
-/**
- * Generates a lookup table for trigonometric functions
- * The keys will be the degrees times 10, so we can easily round to 0.1 degree
- * @param trigonometricFunction
- */
-function getLookupTable(trigonometricFunction: (rad: number) => number): {[deg: number]: number} {
-	const lookup: {[deg: number]: number} = {};
-	for (let i = 0; i <= 360; i+= 1) {
-		lookup[Math.round(i)] = trigonometricFunction(i / 180 * Math.PI);
-	}
-	return lookup;
-}
-
-const cosLookupTable: {[deg: number]: number} = getLookupTable(Math.cos);
-const sinLookupTable: {[deg: number]: number} = getLookupTable(Math.sin);
-const tanLookupTable: {[deg: number]: number} = getLookupTable(Math.tan);
-
-function lookupAndInterpolate(deg: number, lookupTable: {[deg: number]: number}): number {
-	const lowerDeg = Math.floor(deg);
-	const upperDeg = Math.ceil(deg + 0.00001);
-	const lowerTri = lookupTable[lowerDeg];
-	const upperTri = lookupTable[upperDeg];
-	const diffDeg = upperDeg - lowerDeg;
-	const diffCos = upperTri - lowerTri;
-	return lowerTri + Math.abs(deg - lowerDeg) / diffDeg * diffCos;
-}
-
-function cos(deg: number): number {
-	return lookupAndInterpolate(deg, cosLookupTable);
-}
-
-function sin(deg: number): number {
-	return lookupAndInterpolate(deg, sinLookupTable);
-}
-
-function tan(deg: number): number {
-	return lookupAndInterpolate(deg, tanLookupTable);
-}
-
 const BTN1 = {
 	read: () => buttons.BTN1.active,
 };
@@ -203,27 +110,6 @@ const BTN4 = {
 
 const BTN5 = {
 	read: () => buttons.BTN5.active,
-};
-
-
-let globals: {
-	Bangle: any,
-	g: any,
-	BTN1: { read: () => boolean },
-	BTN2: { read: () => boolean },
-	BTN3: { read: () => boolean },
-	BTN4: { read: () => boolean },
-	BTN5: { read: () => boolean },
-};
-
-globals = {
-	Bangle,
-	g,
-	BTN1,
-	BTN2,
-	BTN3,
-	BTN4,
-	BTN5
 };
 
 type ButtonIndex = 'BTN1' | 'BTN2' | 'BTN3' | 'BTN4' | 'BTN5';
@@ -283,6 +169,120 @@ const buttons: { [key in ButtonIndex]: ButtonInfo } = {
 	});
 });
 
+const Bangle = {
+	setLCDMode: (type: string) => {
+	},
+};
+
+let globals: {
+	Bangle: any,
+	g: any,
+	BTN1: { read: () => boolean },
+	BTN2: { read: () => boolean },
+	BTN3: { read: () => boolean },
+	BTN4: { read: () => boolean },
+	BTN5: { read: () => boolean },
+} = {
+	Bangle,
+	g: {},
+	BTN1,
+	BTN2,
+	BTN3,
+	BTN4,
+	BTN5
+};
+let context: CanvasRenderingContext2D;
+let contextDebug: CanvasRenderingContext2D;
+window.onload = () => {
+	const canvas: HTMLCanvasElement | null = document.getElementById('canvas') as HTMLCanvasElement | null;
+
+	if (canvas) {
+		canvas.width = screenWidth;
+		canvas.height = screenHeight;
+		const tempContext = canvas.getContext('2d');
+		if (tempContext) {
+			context = tempContext;
+
+			globals.g = {
+				setPixel: (x: number, y: number) => {
+					context.fillStyle = '#000000';
+					context.fillRect(x, y, 1, 1);
+				},
+				clear: () => {
+					context.fillStyle = '#EEEEEE';
+					context.fillRect(0, 0, screenWidth, screenHeight);
+					context.fillStyle = '#000000';
+				},
+				flip: () => {
+				},
+				getWidth: () => screenWidth,
+				getHeight: () => screenHeight,
+			};
+		} else {
+			console.error('Failed to get the 2d canvas context');
+		}
+	} else {
+		console.error('Failed to find canvas element');
+	}
+
+	const canvasDebug: HTMLCanvasElement | null = document.getElementById('canvas-debug') as HTMLCanvasElement | null;
+	if (canvasDebug) {
+		canvasDebug.width = debugWidth;
+		canvasDebug.height = debugHeight;
+		const tempContext = canvasDebug.getContext('2d');
+		if (tempContext) {
+			contextDebug = tempContext;
+		} else {
+			console.error('Failed to get the 2d canvas context for debug');
+		}
+	} else {
+		console.error('Failed to find canvas element for debug');
+	}
+
+	// gameStart();
+	setTimeout(onFrame, 500);
+	console.log('starting maze runner');
+};
+
+/**
+ * Generates a lookup table for trigonometric functions
+ * The keys will be the degrees times 10, so we can easily round to 0.1 degree
+ * @param trigonometricFunction
+ */
+function getLookupTable(trigonometricFunction: (rad: number) => number): {[deg: number]: number} {
+	const lookup: {[deg: number]: number} = {};
+	for (let i = 0; i <= 360; i+= 1) {
+		lookup[Math.round(i)] = trigonometricFunction(i / 180 * Math.PI);
+	}
+	return lookup;
+}
+
+const cosLookupTable: {[deg: number]: number} = getLookupTable(Math.cos);
+const sinLookupTable: {[deg: number]: number} = getLookupTable(Math.sin);
+const tanLookupTable: {[deg: number]: number} = getLookupTable(Math.tan);
+
+function lookupAndInterpolate(deg: number, lookupTable: {[deg: number]: number}): number {
+	const lowerDeg = Math.floor(deg);
+	const upperDeg = Math.ceil(deg + 0.00001);
+	const lowerTri = lookupTable[lowerDeg];
+	const upperTri = lookupTable[upperDeg];
+	const diffDeg = upperDeg - lowerDeg;
+	const diffCos = upperTri - lowerTri;
+	return lowerTri + Math.abs(deg - lowerDeg) / diffDeg * diffCos;
+}
+
+function cos(deg: number): number {
+	return lookupAndInterpolate(deg, cosLookupTable);
+}
+
+function sin(deg: number): number {
+	return lookupAndInterpolate(deg, sinLookupTable);
+}
+
+function tan(deg: number): number {
+	return lookupAndInterpolate(deg, tanLookupTable);
+}
+
 // } else {
 // 	globals = {
 // 		Bangle: Bangle,
@@ -296,15 +296,12 @@ const buttons: { [key in ButtonIndex]: ButtonInfo } = {
 
 globals.Bangle.setLCDMode('doublebuffered');
 
-let W = globals.g.getWidth();
-let H = globals.g.getHeight();
-
-console.log('screen: ', W, H);
+console.log('screen: ', screenWidth, screenHeight);
 
 // function gameStop() {
 // 	running = false;
 // 	globals.g.clear();
-// 	globals.g.drawString('Game Over!', 120, (H - 6) / 2);
+// 	globals.g.drawString('Game Over!', 120, (screenHeight - 6) / 2);
 // 	globals.g.flip();
 // }
 //
@@ -486,7 +483,7 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 }
 
 function drawPixel(x: number, y: number) {
-	if (x >= 0 && x < W && y >= 0 && y < H) {
+	if (x >= 0 && x < screenWidth && y >= 0 && y < screenHeight) {
 		globals.g.setPixel(x, y);
 	}
 }
@@ -511,11 +508,11 @@ function drawWalls() {
 	// console.log('player angle: ', playerAngle);
 
 	const startAngle = clampDeg(playerAngle - viewAngleWidth / 2);
-	const raytraceStepAngle = viewAngleWidth / W;
+	const raytraceStepAngle = viewAngleWidth / screenWidth;
 	const anglesCollisionsAndDistances: CollisionInfo[] = [];
-	for (let i = 0; i < W; i += 1) {
+	for (let i = 0; i < screenWidth; i += 1) {
 		const viewAngle = clampDeg(startAngle + raytraceStepAngle * i);
-		const collision: Point = getCollisionDistance(viewAngle, i === 0 || i >= W - 1);
+		const collision: Point = getCollisionDistance(viewAngle, i === 0 || i >= screenWidth - 1);
 		const directDistance = Math.sqrt(getSquareDistance(playerX, playerY, collision.x, collision.y));
 		const perpendicularDistance = directDistance * cos(clampDeg(viewAngle - playerAngle));
 
@@ -575,10 +572,10 @@ function drawWalls() {
 		let wallHeight = screenHeight / collisionInfo.distance;
 
 		if (collisionInfo.shouldDrawWall) {
-			drawVerticalLine(index, Math.round((H - wallHeight) / 2), Math.round((H - wallHeight) / 2 + wallHeight));
+			drawVerticalLine(index, Math.round((screenHeight - wallHeight) / 2), Math.round((screenHeight - wallHeight) / 2 + wallHeight));
 		} else {
-			drawPixel(index, Math.round((H - wallHeight) / 2));
-			drawPixel(index, Math.round((H - wallHeight) / 2 + wallHeight));
+			drawPixel(index, Math.round((screenHeight - wallHeight) / 2));
+			drawPixel(index, Math.round((screenHeight - wallHeight) / 2 + wallHeight));
 		}
 	});
 }
@@ -753,7 +750,3 @@ function onFrame() {
 	lastPlayerAngle = playerAngle;
 	setTimeout(onFrame, 50);
 }
-
-// gameStart();
-setTimeout(onFrame, 500);
-console.log('starting maze runner');
