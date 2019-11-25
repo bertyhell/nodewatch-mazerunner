@@ -1,39 +1,15 @@
-// const isBangle = process && process.env && process.env.BOARD === 'BANGLEJS';
+import { ScreenIoOperations, MazeElement, Point, Quadrant } from './types';
+import { clampDeg, cos, sin, tan } from './utils';
 
-const enum MazeElement {
-	UNVISITED_EMPTY = -1,
-	EMPTY = 0,
-	WALL = 1,
-	PLAYER = 2,
-	END = 3,
-}
-
-const enum Quadrant {
-	BottomRight = 0,
-	BottomLeft = 1,
-	TopLeft = 2,
-	TopRight = 3,
-}
-
-// Game variables
 const mazeWidth = 20;
 const mazeHeight = 15;
-const debugCellSize = 20;
 const screenWidth = 240;
 const screenHeight = 160;
 const viewAngleWidth = 70;
 const angleStep = 7;
 const playerStepSize = 0.1;
-
-// Computed values
 const mazeHorCells = mazeWidth * 2 + 1;
 const mazeVerCells = mazeHeight * 2 + 1;
-
-const debugWidth = mazeHorCells * debugCellSize;
-const debugHeight = mazeVerCells * debugCellSize;
-
-let playerX = 1.5;
-let playerY = 1.5;
 
 const maze: MazeElement[][] = generateMaze(mazeHorCells, mazeVerCells);
 // let maze: MazeElement[][] = [
@@ -45,9 +21,33 @@ const maze: MazeElement[][] = generateMaze(mazeHorCells, mazeVerCells);
 // 	[1, 1, 1, 1, 1, 1, 1]
 // ];
 
-// point te player towards the hallway instead of towards a wall
-// Checks if the cell to the right of the player is a wall, if so, point the player down (90), else to the right (0)
-let playerAngle = maze[1][2] === MazeElement.WALL ? 90 : 0;
+// Game variables
+export const gameVariables = {
+	mazeWidth,
+	mazeHeight,
+	screenWidth,
+	screenHeight,
+	viewAngleWidth,
+	angleStep,
+	playerStepSize,
+
+	// Computed values
+  mazeHorCells,
+  mazeVerCells,
+  playerX: 1.5,
+  playerY: 1.5,
+	maze,
+	// point te player towards the hallway instead of towards a wall
+  // Checks if the cell to the right of the player is a wall, if so, point the player down (90), else to the right (0)
+	playerAngle: maze[1][2] === MazeElement.WALL ? 90 : 0,
+
+	onFrame,
+	startGame,
+	stopGame,
+};
+
+
+
 
 // Determines if we should draw a vertical wall line for the given intersections at the center of these 4 maze cells:
 // +-----+
@@ -92,196 +92,7 @@ const CORNERS: { [cornerKey: string]: boolean } = {
 
 let running = true;
 
-const BTN1 = {
-	read: () => buttons.BTN1.active,
-};
 
-const BTN2 = {
-	read: () => buttons.BTN2.active,
-};
-
-const BTN3 = {
-	read: () => false,
-};
-
-const BTN4 = {
-	read: () => buttons.BTN4.active,
-};
-
-const BTN5 = {
-	read: () => buttons.BTN5.active,
-};
-
-type ButtonIndex = 'BTN1' | 'BTN2' | 'BTN3' | 'BTN4' | 'BTN5';
-
-interface Point {
-	x: number;
-	y: number;
-}
-
-interface ButtonInfo {
-	name: 'up' | 'down' | 'menu' | 'left' | 'right';
-	code: 9 | 37 | 38 | 39 | 40;
-	bangleVar: ButtonIndex;
-	active: boolean;
-}
-
-const buttons: { [key in ButtonIndex]: ButtonInfo } = {
-	BTN1: {
-		name: 'up',
-		code: 38,
-		bangleVar: 'BTN1',
-		active: false,
-	},
-	BTN2: {
-		name: 'down',
-		code: 40,
-		bangleVar: 'BTN2',
-		active: false,
-	},
-	BTN3: {
-		name: 'menu',
-		code: 9,
-		bangleVar: 'BTN3',
-		active: false,
-	},
-	BTN4: {
-		name: 'left',
-		code: 37,
-		bangleVar: 'BTN4',
-		active: false,
-	},
-	BTN5: {
-		name: 'right',
-		code: 39,
-		bangleVar: 'BTN5',
-		active: false,
-	},
-};
-
-[{ prop: 'keyup', active: false }, { prop: 'keydown', active: true }].forEach((eventType) => {
-	document.addEventListener(eventType.prop as 'keyup' | 'keydown', (event: KeyboardEvent) => {
-		(Object.keys(buttons) as ButtonIndex[]).forEach((key: ButtonIndex) => {
-			if ((event.which || event.keyCode) === buttons[key].code) {
-				buttons[key].active = eventType.active;
-			}
-		});
-	});
-});
-
-const Bangle = {
-	setLCDMode: (type: string) => {
-	},
-};
-
-let globals: {
-	Bangle: any,
-	g: any,
-	BTN1: { read: () => boolean },
-	BTN2: { read: () => boolean },
-	BTN3: { read: () => boolean },
-	BTN4: { read: () => boolean },
-	BTN5: { read: () => boolean },
-} = {
-	Bangle,
-	g: {},
-	BTN1,
-	BTN2,
-	BTN3,
-	BTN4,
-	BTN5
-};
-let context: CanvasRenderingContext2D;
-let contextDebug: CanvasRenderingContext2D;
-window.onload = () => {
-	const canvas: HTMLCanvasElement | null = document.getElementById('canvas') as HTMLCanvasElement | null;
-
-	if (canvas) {
-		canvas.width = screenWidth;
-		canvas.height = screenHeight;
-		const tempContext = canvas.getContext('2d');
-		if (tempContext) {
-			context = tempContext;
-
-			globals.g = {
-				setPixel: (x: number, y: number) => {
-					context.fillStyle = '#000000';
-					context.fillRect(x, y, 1, 1);
-				},
-				clear: () => {
-					context.fillStyle = '#EEEEEE';
-					context.fillRect(0, 0, screenWidth, screenHeight);
-					context.fillStyle = '#000000';
-				},
-				flip: () => {
-				},
-				getWidth: () => screenWidth,
-				getHeight: () => screenHeight,
-			};
-		} else {
-			console.error('Failed to get the 2d canvas context');
-		}
-	} else {
-		console.error('Failed to find canvas element');
-	}
-
-	const canvasDebug: HTMLCanvasElement | null = document.getElementById('canvas-debug') as HTMLCanvasElement | null;
-	if (canvasDebug) {
-		canvasDebug.width = debugWidth;
-		canvasDebug.height = debugHeight;
-		const tempContext = canvasDebug.getContext('2d');
-		if (tempContext) {
-			contextDebug = tempContext;
-		} else {
-			console.error('Failed to get the 2d canvas context for debug');
-		}
-	} else {
-		console.error('Failed to find canvas element for debug');
-	}
-
-	// gameStart();
-	setTimeout(onFrame, 500);
-	console.log('starting maze runner');
-};
-
-/**
- * Generates a lookup table for trigonometric functions
- * The keys will be the degrees times 10, so we can easily round to 0.1 degree
- * @param trigonometricFunction
- */
-function getLookupTable(trigonometricFunction: (rad: number) => number): {[deg: number]: number} {
-	const lookup: {[deg: number]: number} = {};
-	for (let i = 0; i <= 360; i+= 1) {
-		lookup[Math.round(i)] = trigonometricFunction(i / 180 * Math.PI);
-	}
-	return lookup;
-}
-
-const cosLookupTable: {[deg: number]: number} = getLookupTable(Math.cos);
-const sinLookupTable: {[deg: number]: number} = getLookupTable(Math.sin);
-const tanLookupTable: {[deg: number]: number} = getLookupTable(Math.tan);
-
-function lookupAndInterpolate(deg: number, lookupTable: {[deg: number]: number}): number {
-	const lowerDeg = Math.floor(deg);
-	const upperDeg = Math.ceil(deg + 0.00001);
-	const lowerTri = lookupTable[lowerDeg];
-	const upperTri = lookupTable[upperDeg];
-	const diffDeg = upperDeg - lowerDeg;
-	const diffCos = upperTri - lowerTri;
-	return lowerTri + Math.abs(deg - lowerDeg) / diffDeg * diffCos;
-}
-
-function cos(deg: number): number {
-	return lookupAndInterpolate(deg, cosLookupTable);
-}
-
-function sin(deg: number): number {
-	return lookupAndInterpolate(deg, sinLookupTable);
-}
-
-function tan(deg: number): number {
-	return lookupAndInterpolate(deg, tanLookupTable);
-}
 
 // } else {
 // 	globals = {
@@ -294,74 +105,19 @@ function tan(deg: number): number {
 // 	};
 // }
 
-globals.Bangle.setLCDMode('doublebuffered');
 
-console.log('screen: ', screenWidth, screenHeight);
+console.log('screen: ', gameVariables.screenWidth, gameVariables.screenHeight);
 
-// function gameStop() {
-// 	running = false;
-// 	globals.g.clear();
-// 	globals.g.drawString('Game Over!', 120, (screenHeight - 6) / 2);
-// 	globals.g.flip();
-// }
-//
-// function gameStart() {
-// 	running = true;
-// }
-
-function clampDeg(deg: number): number {
-	return (deg + 360) % 360;
+function startGame(screenIo: ScreenIoOperations) {
+	running = true;
+	gameVariables.onFrame(screenIo);
 }
 
-function drawDebugGrid() {
-	contextDebug.fillStyle = '#FFFFFF';
-	contextDebug.clearRect(0, 0, debugWidth, debugHeight);
-
-	// draw grid
-	contextDebug.strokeStyle = '#000000';
-	for (let row = 0; row < maze.length; row++) {
-		for (let col = 0; col < maze[0].length; col++) {
-			const mazeItem = maze[row][col];
-			contextDebug.strokeStyle = '#333333';
-			if (mazeItem === MazeElement.WALL) {
-				contextDebug.fillStyle = '#000000';
-			} else if (mazeItem === MazeElement.END) {
-				contextDebug.fillStyle = '#00FF00';
-			} else { // Empty
-				contextDebug.fillStyle = '#FFFFFF';
-			}
-			contextDebug.fillRect(col * debugCellSize, row * debugCellSize, debugCellSize, debugCellSize);
-			contextDebug.strokeRect(col * debugCellSize, row * debugCellSize, debugCellSize, debugCellSize);
-		}
-	}
-
-	// draw player
-	contextDebug.fillStyle = '#0000FF';
-	contextDebug.fillRect(playerX * debugCellSize - 3, playerY * debugCellSize - 3, 7, 7);
-
-	// draw viewAngle
-	contextDebug.strokeStyle = '#666666';
-	contextDebug.beginPath();
-	contextDebug.moveTo(playerX * debugCellSize, playerY * debugCellSize);
-	contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(clampDeg(playerAngle - viewAngleWidth / 2)), playerY * debugCellSize + 1000 * sin(clampDeg(playerAngle - viewAngleWidth / 2)));
-	contextDebug.stroke();
-	contextDebug.beginPath();
-	contextDebug.moveTo(playerX * debugCellSize, playerY * debugCellSize);
-	contextDebug.lineTo(playerX * debugCellSize + 1000 * cos(clampDeg(playerAngle + viewAngleWidth / 2)), playerY * debugCellSize + 1000 * sin(clampDeg(playerAngle + viewAngleWidth / 2)));
-	contextDebug.stroke();
-}
-
-function drawDebugPixel(x: number, y: number, color: string = '#ff8e00') {
-	contextDebug.fillStyle = color;
-	contextDebug.fillRect(x * debugCellSize - 1, y * debugCellSize - 1, 3, 3);
-}
-
-function drawDebugLine(x1: number, y1: number, x2: number, y2: number, color: string = 'rgba(200, 200, 200, 0.5)') {
-	contextDebug.strokeStyle = color;
-	contextDebug.beginPath();
-	contextDebug.moveTo(x1 * debugCellSize, y1 * debugCellSize);
-	contextDebug.lineTo(x2 * debugCellSize, y2 * debugCellSize);
-	contextDebug.stroke();
+function stopGame() {
+	running = false;
+	// globals.g.clear();
+	// globals.g.drawString('Game Over!', 120, (gameVariables.screenHeight - 6) / 2);
+	// globals.g.flip();
 }
 
 function getSquareDistance(x1: number, y1: number, x2: number, y2: number) {
@@ -375,7 +131,7 @@ function isOutsideMaze(maze: MazeElement[][], location: Point): boolean {
 /**
  * https://www.permadi.com/tutorial/raycast/rayc7.html
  */
-function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
+function getCollisionDistance(viewAngle: number, outerRay: boolean, debugOperations: ScreenIoOperations): Point {
 	const quadrant: Quadrant = Math.floor(viewAngle / 90);
 
 	let horCollision: Point | undefined; // first intersection with a wall
@@ -404,11 +160,11 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 		if (!horCollision) {
 			if (!initialHorIntersectionX) {
 				if (isFacingUp) {
-					initialHorIntersectionY = Math.floor(playerY);
+					initialHorIntersectionY = Math.floor(gameVariables.playerY);
 				} else {
-					initialHorIntersectionY = Math.floor(playerY) + 1;
+					initialHorIntersectionY = Math.floor(gameVariables.playerY) + 1;
 				}
-				initialHorIntersectionX = playerX - (playerY - initialHorIntersectionY) / tan(viewAngle);
+				initialHorIntersectionX = gameVariables.playerX - (gameVariables.playerY - initialHorIntersectionY) / tan(viewAngle);
 			}
 			if (intersectionOffset !== 0 && !horizontalOffsetX) {
 				if (isFacingUp) {
@@ -425,11 +181,11 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 				y: Math.floor(horIntersectionY) + (isFacingUp ? -1 : 0),
 			};
 			if (isOutsideMaze(maze, horGridLocation) || maze[horGridLocation.y][horGridLocation.x] === MazeElement.WALL) {
-				outerRay ? drawDebugPixel(horIntersectionX, horIntersectionY) : () => {
+				outerRay ? debugOperations.drawDebugPixel(horIntersectionX, horIntersectionY) : () => {
 				};
 				horCollision = { x: horIntersectionX, y: horIntersectionY };
 			} else {
-				outerRay ? drawDebugPixel(horIntersectionX, horIntersectionY, '#FF0000') : () => {
+				outerRay ? debugOperations.drawDebugPixel(horIntersectionX, horIntersectionY, '#FF0000') : () => {
 				};
 			}
 		}
@@ -440,11 +196,11 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 		if (!vertCollision) {
 			if (!initialVertIntersectionX) {
 				if (isFacingRight) {
-					initialVertIntersectionX = Math.floor(playerX) + 1;
+					initialVertIntersectionX = Math.floor(gameVariables.playerX) + 1;
 				} else {
-					initialVertIntersectionX = Math.floor(playerX);
+					initialVertIntersectionX = Math.floor(gameVariables.playerX);
 				}
-				initialVertIntersectionY = playerY - (playerX - initialVertIntersectionX) * tan(viewAngle);
+				initialVertIntersectionY = gameVariables.playerY - (gameVariables.playerX - initialVertIntersectionX) * tan(viewAngle);
 			}
 			if (intersectionOffset !== 0 && !verticalOffsetX) {
 				verticalOffsetX = isFacingRight ? 1 : -1;
@@ -458,40 +214,28 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean): Point {
 				y: Math.floor(vertIntersectionY),
 			};
 			if (isOutsideMaze(maze, vertGridLocation) || maze[vertGridLocation.y][vertGridLocation.x] === MazeElement.WALL) {
-				outerRay ? drawDebugPixel(vertIntersectionX, vertIntersectionY) : () => {
+				outerRay ? debugOperations.drawDebugPixel(vertIntersectionX, vertIntersectionY) : () => {
 				};
 				vertCollision = { x: vertIntersectionX, y: vertIntersectionY };
 			} else {
-				outerRay ? drawDebugPixel(vertIntersectionX, vertIntersectionY, '#FF0000') : () => {
+				outerRay ? debugOperations.drawDebugPixel(vertIntersectionX, vertIntersectionY, '#FF0000') : () => {
 				};
 			}
 		}
 		intersectionOffset++;
 	}
-	const horDistance = getSquareDistance(playerX, playerY, horCollision.x, horCollision.y);
-	const vertDistance = getSquareDistance(playerX, playerY, vertCollision.x, vertCollision.y);
+	const horDistance = getSquareDistance(gameVariables.playerX, gameVariables.playerY, horCollision.x, horCollision.y);
+	const vertDistance = getSquareDistance(gameVariables.playerX, gameVariables.playerY, vertCollision.x, vertCollision.y);
 	const closestCollision: Point = horDistance < vertDistance ? horCollision : vertCollision;
-	outerRay ? drawDebugPixel(closestCollision.x, closestCollision.y, '#00FF00') : () => {
+	outerRay ? debugOperations.drawDebugPixel(closestCollision.x, closestCollision.y, '#00FF00') : () => {
 	};
-	drawDebugLine(playerX, playerY, closestCollision.x, closestCollision.y);
+	debugOperations.drawDebugLine(gameVariables.playerX, gameVariables.playerY, closestCollision.x, closestCollision.y);
 
 	if (!closestCollision) {
 		throw new Error('intersection is null');
 	}
 
 	return closestCollision;
-}
-
-function drawPixel(x: number, y: number) {
-	if (x >= 0 && x < screenWidth && y >= 0 && y < screenHeight) {
-		globals.g.setPixel(x, y);
-	}
-}
-
-function drawVerticalLine(x: number, y1: number, y2: number) {
-	for (let i = y1; i <= y2; i++) {
-		drawPixel(x, i);
-	}
 }
 
 interface CollisionInfo {
@@ -501,20 +245,20 @@ interface CollisionInfo {
 	shouldDrawWall: boolean;
 }
 
-function drawWalls() {
+function drawWalls(screenIo: ScreenIoOperations) {
 	// console.log('--------------------------');
-	drawDebugGrid();
+	screenIo.drawDebugGrid(maze);
 
 	// console.log('player angle: ', playerAngle);
 
-	const startAngle = clampDeg(playerAngle - viewAngleWidth / 2);
-	const raytraceStepAngle = viewAngleWidth / screenWidth;
+	const startAngle = clampDeg(gameVariables.playerAngle - gameVariables.viewAngleWidth / 2);
+	const raytraceStepAngle = gameVariables.viewAngleWidth / gameVariables.screenWidth;
 	const anglesCollisionsAndDistances: CollisionInfo[] = [];
-	for (let i = 0; i < screenWidth; i += 1) {
+	for (let i = 0; i < gameVariables.screenWidth; i += 1) {
 		const viewAngle = clampDeg(startAngle + raytraceStepAngle * i);
-		const collision: Point = getCollisionDistance(viewAngle, i === 0 || i >= screenWidth - 1);
-		const directDistance = Math.sqrt(getSquareDistance(playerX, playerY, collision.x, collision.y));
-		const perpendicularDistance = directDistance * cos(clampDeg(viewAngle - playerAngle));
+		const collision: Point = getCollisionDistance(viewAngle, i === 0 || i >= gameVariables.screenWidth - 1, screenIo);
+		const directDistance = Math.sqrt(getSquareDistance(gameVariables.playerX, gameVariables.playerY, collision.x, collision.y));
+		const perpendicularDistance = directDistance * cos(clampDeg(viewAngle - gameVariables.playerAngle));
 
 		anglesCollisionsAndDistances.push({
 			angle: viewAngle,
@@ -569,13 +313,13 @@ function drawWalls() {
 
 	// Draw the walls
 	anglesCollisionsAndDistances.forEach((collisionInfo: CollisionInfo, index: number) => {
-		let wallHeight = screenHeight / collisionInfo.distance;
+		let wallHeight = gameVariables.screenHeight / collisionInfo.distance;
 
 		if (collisionInfo.shouldDrawWall) {
-			drawVerticalLine(index, Math.round((screenHeight - wallHeight) / 2), Math.round((screenHeight - wallHeight) / 2 + wallHeight));
+			screenIo.drawVerticalLine(index, Math.round((gameVariables.screenHeight - wallHeight) / 2), Math.round((gameVariables.screenHeight - wallHeight) / 2 + wallHeight));
 		} else {
-			drawPixel(index, Math.round((screenHeight - wallHeight) / 2));
-			drawPixel(index, Math.round((screenHeight - wallHeight) / 2 + wallHeight));
+			screenIo.drawPixel(index, Math.round((gameVariables.screenHeight - wallHeight) / 2));
+			screenIo.drawPixel(index, Math.round((gameVariables.screenHeight - wallHeight) / 2 + wallHeight));
 		}
 	});
 }
@@ -586,27 +330,27 @@ function isInsideWall(playerX: number, playerY: number) {
 
 function movePlayer(deltaX: number, deltaY: number) {
 	// Try moving in both directions
-	let newPlayerX = playerX + deltaX;
-	let newPlayerY = playerY + deltaY;
+	let newPlayerX = gameVariables.playerX + deltaX;
+	let newPlayerY = gameVariables.playerY + deltaY;
 	if (!isInsideWall(newPlayerX, newPlayerY)) {
-		playerX = newPlayerX;
-		playerY = newPlayerY;
+		gameVariables.playerX = newPlayerX;
+		gameVariables.playerY = newPlayerY;
 		return;
 	}
 	// Try moving in the y direction only
-	newPlayerX = playerX;
-	newPlayerY = playerY + deltaY;
+	newPlayerX = gameVariables.playerX;
+	newPlayerY = gameVariables.playerY + deltaY;
 	if (!isInsideWall(newPlayerX, newPlayerY)) {
-		playerX = newPlayerX;
-		playerY = newPlayerY;
+		gameVariables.playerX = newPlayerX;
+		gameVariables.playerY = newPlayerY;
 		return;
 	}
 	// Try moving in the x direction only
-	newPlayerX = playerX + deltaX;
-	newPlayerY = playerY;
+	newPlayerX = gameVariables.playerX + deltaX;
+	newPlayerY = gameVariables.playerY;
 	if (!isInsideWall(newPlayerX, newPlayerY)) {
-		playerX = newPlayerX;
-		playerY = newPlayerY;
+		gameVariables.playerX = newPlayerX;
+		gameVariables.playerY = newPlayerY;
 		return;
 	}
 }
@@ -696,37 +440,37 @@ let lastPlayerX: number | undefined = undefined;
 let lastPlayerY: number | undefined = undefined;
 let lastPlayerAngle: number | undefined = undefined;
 
-function onFrame() {
+function onFrame(screenIo: ScreenIoOperations) {
 	// let t = getTime();
 	// let d = (lastFrame===undefined)?0:(t-lastFrame)*20;
 	// lastFrame = t;
 
-	if (globals.BTN4.read()) {
+	if (screenIo.BTN4.read()) {
 		// console.log('left');
-		playerAngle = clampDeg(playerAngle - angleStep);
+		gameVariables.playerAngle = clampDeg(gameVariables.playerAngle - gameVariables.angleStep);
 	}
-	if (globals.BTN5.read()) {
+	if (screenIo.BTN5.read()) {
 		// console.log('right');
-		playerAngle = clampDeg(playerAngle + angleStep);
+		gameVariables.playerAngle = clampDeg(gameVariables.playerAngle + gameVariables.angleStep);
 	}
-	if (globals.BTN1.read()) {
+	if (screenIo.BTN1.read()) {
 		// console.log('forward');
 
-		const quadrant: Quadrant = Math.floor(playerAngle / 90);
+		const quadrant: Quadrant = Math.floor(gameVariables.playerAngle / 90);
 		const isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
 		const isFacingRight = quadrant === Quadrant.TopRight || quadrant === Quadrant.BottomRight;
-		const playerXDelta = Math.abs(cos(playerAngle) * playerStepSize) * (isFacingRight ? 1 : -1);
-		const playerYDelta = Math.abs(sin(playerAngle) * playerStepSize) * (isFacingUp ? -1 : 1);
+		const playerXDelta = Math.abs(cos(gameVariables.playerAngle) * gameVariables.playerStepSize) * (isFacingRight ? 1 : -1);
+		const playerYDelta = Math.abs(sin(gameVariables.playerAngle) * gameVariables.playerStepSize) * (isFacingUp ? -1 : 1);
 		movePlayer(playerXDelta, playerYDelta);
 	}
-	if (globals.BTN2.read()) {
+	if (screenIo.BTN2.read()) {
 		// console.log('backward');
 
-		const quadrant: Quadrant = Math.floor(playerAngle / 90);
+		const quadrant: Quadrant = Math.floor(gameVariables.playerAngle / 90);
 		const isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
 		const isFacingRight = quadrant === Quadrant.TopRight || quadrant === Quadrant.BottomRight;
-		const playerXDelta = Math.abs(cos(playerAngle) * playerStepSize) * (isFacingRight ? -1 : 1);
-		const playerYDelta = Math.abs(sin(playerAngle) * playerStepSize) * (isFacingUp ? 1 : -1);
+		const playerXDelta = Math.abs(cos(gameVariables.playerAngle) * gameVariables.playerStepSize) * (isFacingRight ? -1 : 1);
+		const playerYDelta = Math.abs(sin(gameVariables.playerAngle) * gameVariables.playerStepSize) * (isFacingUp ? 1 : -1);
 		movePlayer(playerXDelta, playerYDelta);
 	}
 
@@ -735,18 +479,18 @@ function onFrame() {
 		return;
 	}
 
-	if (lastPlayerX !== playerX ||
-		lastPlayerY !== playerY ||
-		lastPlayerAngle !== playerAngle) {
+	if (lastPlayerX !== gameVariables.playerX ||
+		lastPlayerY !== gameVariables.playerY ||
+		lastPlayerAngle !== gameVariables.playerAngle) {
 		// console.log('start draw cycle');
-		globals.g.clear();
-		drawWalls();
-		globals.g.flip();
+		screenIo.clear();
+		drawWalls(screenIo);
+		screenIo.flip();
 		// console.log('finished draw cycle');
 	}
 
-	lastPlayerX = playerX;
-	lastPlayerY = playerY;
-	lastPlayerAngle = playerAngle;
-	setTimeout(onFrame, 50);
+	lastPlayerX = gameVariables.playerX;
+	lastPlayerY = gameVariables.playerY;
+	lastPlayerAngle = gameVariables.playerAngle;
+	setTimeout(() => onFrame(screenIo), 50);
 }

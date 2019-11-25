@@ -7,13 +7,19 @@
     "axel": "0.0.3",
     "canvas": "^2.6.0",
     "drawille": "^1.1.1",
-    "live-server": "^1.2.1",
-    "typescript": "^3.7.2"
+    "live-server": "^1.2.1"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "ts-loader": "^6.2.1",
+    "typescript": "^3.7.2",
+    "uglifyjs-webpack-plugin": "^2.2.0",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10"
+  },
   "scripts": {
     "start": "live-server .",
-    "build": "tsc"
+    "build": "webpack --config ./webpack.config.js",
+    "build-prod": "webpack --config ./webpack.config.js --production"
   },
   "keywords": [
     "bangle",
