@@ -42,5 +42,18 @@ const screenIo: ScreenIoOperations = {
 	drawDebugPixel: () => {},
 };
 
-gameVariables.startGame(screenIo);
+g.setFontAlign(0,-1);
+g.clear();
+g.drawString("Press button 2 to start game ==>",120,(g.getHeight()-6)/2);
+
+function checkForStart() {
+	if (BTN2.read()) {
+		console.log('starting game');
+		gameVariables.startGame(screenIo);
+	} else {
+		setTimeout(checkForStart, 16);
+	}
+}
+
 console.log('starting maze runner');
+checkForStart();

@@ -15,7 +15,7 @@ module.exports = {
 		rules: [
 			{
 				test: /\.ts$/,
-				use: 'ts-loader',
+				use: "ts-loader",
 				exclude: /node_modules/,
 			},
 		],
@@ -23,7 +23,7 @@ module.exports = {
 	resolve: {
 		extensions: [ '.ts' ],
 	},
-	optimization: {
-		minimizer: [new UglifyJsPlugin()],
-	},
+	// optimization: {
+	// 	minimizer: [new UglifyJsPlugin()],
+	// },
 };

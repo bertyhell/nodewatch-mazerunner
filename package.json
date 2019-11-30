@@ -10,16 +10,24 @@
     "live-server": "^1.2.1"
   },
   "devDependencies": {
+    "@types/node": "^12.12.14",
     "ts-loader": "^6.2.1",
+    "ts-node-dev": "^1.0.0-pre.44",
     "typescript": "^3.7.2",
+    "uglify-js": "^3.7.1",
     "uglifyjs-webpack-plugin": "^2.2.0",
     "webpack": "^4.41.2",
     "webpack-cli": "^3.3.10"
   },
   "scripts": {
-    "start": "live-server .",
-    "build": "webpack --config ./webpack.config.js",
-    "build-prod": "webpack --config ./webpack.config.js --production"
+    "start-desktop": "live-server .",
+    "build-desktop": "npm run transpile-src-desktop",
+    "build-bangle": "npm run transpile-src-bangle && npm run transpile-bangle-build-script && npm run compile-bangle && npm run minify-bangle",
+    "transpile-src-desktop": "webpack --config ./webpack.config.js",
+    "transpile-src-bangle": "tsc -p ./tsconfig.json",
+    "transpile-bangle-build-script": "tsc -p ./tsconfig-bangle-build.json",
+    "compile-bangle": "node ./build-bangle.js",
+    "minify-bangle": "uglifyjs --toplevel --mangle reserved=[\"flip\",\"clear\",\"drawLine\",\"setPixel\",\"setLCDMode\",\"Bangle\",\"setFontAlign\",\"drawString\",\"getHeight\",\"read\"] --mangle-props keep_quoted,reserved=[\"flip\",\"clear\",\"drawLine\",\"setPixel\",\"setLCDMode\",\"Bangle\",\"setFontAlign\",\"drawString\",\"getHeight\",\"read\"] --output ./dist/bangle.min.js ./dist/bangle.js"
   },
   "keywords": [
     "bangle",
@@ -30,3 +38,5 @@
   "author": "Bert Verhelst",
   "license": "ISC"
 }
+
+

@@ -3,6 +3,7 @@ import { ButtonIndex, MazeElement, ScreenIoOperations } from './types';
 import { clampDeg, cos, sin } from './utils';
 
 const debugCellSize = 20;
+const showDebug = false;
 
 interface ButtonInfo {
 	name: 'up' | 'down' | 'menu' | 'left' | 'right';
@@ -83,9 +84,9 @@ const screenIo: ScreenIoOperations = {
 	drawVerticalLine,
 	clear,
 	flip,
-	drawDebugGrid,
-	drawDebugLine,
-	drawDebugPixel,
+	drawDebugGrid: showDebug ? drawDebugGrid : () => {},
+	drawDebugLine: showDebug ? drawDebugLine : () => {},
+	drawDebugPixel: showDebug ? drawDebugPixel : () => {},
 };
 
 let context: CanvasRenderingContext2D;
@@ -106,18 +107,20 @@ window.onload = () => {
 		console.error('Failed to find canvas element');
 	}
 
-	const canvasDebug: HTMLCanvasElement | null = document.getElementById('canvas-debug') as HTMLCanvasElement | null;
-	if (canvasDebug) {
-		canvasDebug.width = debugWidth;
-		canvasDebug.height = debugHeight;
-		const tempContext = canvasDebug.getContext('2d');
-		if (tempContext) {
-			contextDebug = tempContext;
+	if (showDebug) {
+		const canvasDebug: HTMLCanvasElement | null = document.getElementById('canvas-debug') as HTMLCanvasElement | null;
+		if (canvasDebug) {
+			canvasDebug.width = debugWidth;
+			canvasDebug.height = debugHeight;
+			const tempContext = canvasDebug.getContext('2d');
+			if (tempContext) {
+				contextDebug = tempContext;
+			} else {
+				console.error('Failed to get the 2d canvas context for debug');
+			}
 		} else {
-			console.error('Failed to get the 2d canvas context for debug');
+			console.error('Failed to find canvas element for debug');
 		}
-	} else {
-		console.error('Failed to find canvas element for debug');
 	}
 
 	gameVariables.startGame(screenIo);

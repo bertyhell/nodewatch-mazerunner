@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es5",
-    "module": "es6",
+    "target": "es6",
+    "module": "commonjs",
     "sourceMap": true,
-    "outDir": "./temp",
     "removeComments": true,
     "strict": true,
     "noImplicitAny": true,
@@ -13,11 +12,9 @@
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-
     "esModuleInterop": true,
-
     "forceConsistentCasingInFileNames": true,
     "preserveConstEnums": false
   },
-  "files": ["./src/bangle.ts"]
+  "files": ["./build-bangle.ts"]
 }
