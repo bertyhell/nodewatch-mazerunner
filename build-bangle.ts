@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import path from 'path';
 
 const tempDir = path.join(__dirname, 'temp');
@@ -29,6 +29,7 @@ while(bangleJsContent.includes('import ')) {
 bangleJsContent = bangleJsContent.replace(/^\/\/.*?$/gm, '');
 
 const outputPath = path.join(__dirname, 'dist/bangle.js');
+fs.ensureFileSync(outputPath);
 fs.writeFileSync(outputPath, bangleJsContent);
 console.log('Wrote file: ' + path.join(__dirname, 'dist/bangle.js'));
 

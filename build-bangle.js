@@ -3,14 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const fs_1 = __importDefault(require("fs"));
+const fs_extra_1 = __importDefault(require("fs-extra"));
 const path_1 = __importDefault(require("path"));
 const tempDir = path_1.default.join(__dirname, 'temp');
-const filesNames = fs_1.default.readdirSync(tempDir);
+const filesNames = fs_extra_1.default.readdirSync(tempDir);
 const fileContents = {};
 filesNames.forEach((fileName) => {
     if (/.*\.js$/g.test(fileName)) {
-        let fileContent = fs_1.default.readFileSync(path_1.default.join(tempDir, fileName)).toString();
+        let fileContent = fs_extra_1.default.readFileSync(path_1.default.join(tempDir, fileName)).toString();
         fileContent = fileContent.replace(/^export /gm, '');
         fileContents[fileName.replace(/\.js$/, '')] = fileContent;
     }
@@ -30,6 +30,7 @@ while (bangleJsContent.includes('import ')) {
 }
 bangleJsContent = bangleJsContent.replace(/^\/\/.*?$/gm, '');
 const outputPath = path_1.default.join(__dirname, 'dist/bangle.js');
-fs_1.default.writeFileSync(outputPath, bangleJsContent);
+fs_extra_1.default.ensureFileSync(outputPath);
+fs_extra_1.default.writeFileSync(outputPath, bangleJsContent);
 console.log('Wrote file: ' + path_1.default.join(__dirname, 'dist/bangle.js'));
 //# sourceMappingURL=build-bangle.js.map
