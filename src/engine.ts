@@ -1,5 +1,5 @@
 import { ScreenIoOperations, MazeElement, Point, Quadrant } from './types';
-import { clampDeg, cos, generateMaze, getSquareDistance, isOutsideMaze, sin, tan } from './utils';
+import { clampDeg, cos, generateMaze, getSquareDistance, isOutsideMaze, printFreeSpace, sin, tan } from './utils';
 
 const mazeWidth = 3;
 const mazeHeight = 3;
@@ -13,7 +13,9 @@ const playerStepSize = 0.1;
 const mazeHorCells = mazeWidth * 2 + 1;
 const mazeVerCells = mazeHeight * 2 + 1;
 
+printFreeSpace('before maze');
 const maze: MazeElement[][] = generateMaze(mazeHorCells, mazeVerCells);
+printFreeSpace('after maze');
 // let maze: MazeElement[][] = [
 // 	[1, 1, 1, 1, 1, 1, 1],
 // 	[1, 0, 0, 0, 1, 0, 1],
@@ -45,53 +47,13 @@ const gameVars = {
 	// Checks if the cell to the right of the player is a wall, if so, point the player down (90), else to the right (0)
 	playerAngle,
 
-	startGame: (screenIo: ScreenIoOperations) => {},
-	stopGame: () => {},
-};
-
-// Determines if we should draw a vertical wall line for the given intersections at the center of these 4 maze cells:
-// +-----+
-// |0 |1 |
-// +-----+
-// |2 |3 |
-// +-----+
-//
-// eg: 1000 => should draw a wall at the X
-// +--+--+
-// |W |  |
-// +--X--+
-// |  |  |
-// +--+--+
-//
-// eg: 1010 => should not draw a wall at the X since the wall is smoothly running from top to bottom across the intersection
-// +--+--+
-// |W |  |
-// +--X--+
-// |W |  |
-// +--+--+
-//
-// We can assume the X location is always visible from the user's perspective
-const CORNERS: { [cornerKey: string]: boolean } = {
-	'0000': false,
-	'0001': true,
-	'0010': true,
-	'0011': false,
-	'0100': true,
-	'0101': false,
-	'0110': false,
-	'0111': true,
-	'1000': true,
-	'1001': true,
-	'1010': false,
-	'1011': true,
-	'1100': false,
-	'1101': true,
-	'1110': true,
-	'1111': false,
+	startGame: (screenIo: ScreenIoOperations) => {
+	},
+	stopGame: () => {
+	},
 };
 
 let running = true;
-
 
 
 // } else {
@@ -121,6 +83,7 @@ function stopGame() {
  * https://www.permadi.com/tutorial/raycast/rayc7.html
  */
 function getCollisionDistance(viewAngle: number, outerRay: boolean, debugOperations: ScreenIoOperations): Point {
+	// printFreeSpace('before getCollisionDistance');
 	const quadrant: Quadrant = Math.floor(viewAngle / 90);
 
 	let horCollision: Point | undefined; // first intersection with a wall
@@ -170,10 +133,14 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean, debugOperati
 				y: Math.floor(horIntersectionY) + (isFacingUp ? -1 : 0),
 			};
 			if (isOutsideMaze(maze, horGridLocation) || maze[horGridLocation.y][horGridLocation.x] === MazeElement.WALL) {
-				if (outerRay) debugOperations.drawDebugPixel(horIntersectionX, horIntersectionY);
+				if (outerRay) {
+					debugOperations.drawDebugPixel(horIntersectionX, horIntersectionY);
+				}
 				horCollision = { x: horIntersectionX, y: horIntersectionY };
 			} else {
-				if (outerRay) debugOperations.drawDebugPixel(horIntersectionX, horIntersectionY, '#FF0000');
+				if (outerRay) {
+					debugOperations.drawDebugPixel(horIntersectionX, horIntersectionY, '#FF0000');
+				}
 			}
 		}
 
@@ -201,10 +168,14 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean, debugOperati
 				y: Math.floor(vertIntersectionY),
 			};
 			if (isOutsideMaze(maze, vertGridLocation) || maze[vertGridLocation.y][vertGridLocation.x] === MazeElement.WALL) {
-				if (outerRay) debugOperations.drawDebugPixel(vertIntersectionX, vertIntersectionY);
+				if (outerRay) {
+					debugOperations.drawDebugPixel(vertIntersectionX, vertIntersectionY);
+				}
 				vertCollision = { x: vertIntersectionX, y: vertIntersectionY };
 			} else {
-				if (outerRay) debugOperations.drawDebugPixel(vertIntersectionX, vertIntersectionY, '#FF0000');
+				if (outerRay) {
+					debugOperations.drawDebugPixel(vertIntersectionX, vertIntersectionY, '#FF0000');
+				}
 			}
 		}
 		intersectionOffset++;
@@ -212,13 +183,16 @@ function getCollisionDistance(viewAngle: number, outerRay: boolean, debugOperati
 	const horDistance = getSquareDistance(gameVars.playerX, gameVars.playerY, horCollision.x, horCollision.y);
 	const vertDistance = getSquareDistance(gameVars.playerX, gameVars.playerY, vertCollision.x, vertCollision.y);
 	const closestCollision: Point = horDistance < vertDistance ? horCollision : vertCollision;
-	if (outerRay) debugOperations.drawDebugPixel(closestCollision.x, closestCollision.y, '#00FF00');
+	if (outerRay) {
+		debugOperations.drawDebugPixel(closestCollision.x, closestCollision.y, '#00FF00');
+	}
 	debugOperations.drawDebugLine(gameVars.playerX, gameVars.playerY, closestCollision.x, closestCollision.y);
 
 	if (!closestCollision) {
 		throw new Error('intersection is null');
 	}
 
+	// printFreeSpace('after getCollisionDistance');
 	return closestCollision;
 }
 
@@ -244,68 +218,117 @@ function drawWalls(screenIo: ScreenIoOperations) {
 		const directDistance = Math.sqrt(getSquareDistance(gameVars.playerX, gameVars.playerY, collision.x, collision.y));
 		const perpendicularDistance = directDistance * cos(clampDeg(viewAngle - gameVars.playerAngle));
 
-		anglesCollisionsAndDistances.push({
-			angle: viewAngle,
-			collision,
-			distance: perpendicularDistance,
-			shouldDrawWall: false,
-		});
+		// anglesCollisionsAndDistances.push({
+		// 	angle: viewAngle,
+		// 	collision,
+		// 	distance: perpendicularDistance,
+		// 	shouldDrawWall: false,
+		// });
+
+
+		let wallHeight = gameVars.screenHeight / perpendicularDistance;
+		screenIo.drawPixel(i, Math.round((gameVars.screenHeight - wallHeight) / 2));
+		screenIo.drawPixel(i, Math.round((gameVars.screenHeight - wallHeight) / 2 + wallHeight));
 	}
-
-	// Identify which rays should also draw a vertical line to identify corners
-	// Find unique intersection point in the maze which are closest to each collision
-	const intersectionPoints: { [coord: string]: Point } = {};
-	anglesCollisionsAndDistances.forEach(angCollDis => {
-		const intersectionX = Math.round(angCollDis.collision.x);
-		const intersectionY = Math.round(angCollDis.collision.y);
-		intersectionPoints[intersectionX + ';' + intersectionY] = { x: intersectionX, y: intersectionY };
-	});
-	// Identify if the intersection should cause a wall line to be displayed or if it is part of a straight wall
-	const cornerIntersectionPoints: Point[] = [];
-	Object.keys(intersectionPoints).forEach(intersectionKey => {
-		const intersection = intersectionPoints[intersectionKey];
-		const topLeftCell = maze[intersection.y - 1][intersection.x - 1];
-		const topRightCell = maze[intersection.y - 1][intersection.x];
-		const bottomLeftCell = maze[intersection.y][intersection.x - 1];
-		const bottomRightCell = maze[intersection.y][intersection.x];
-
-		// Generate corner key: eg: 1100 or 1010
-		const cornerKey: string =
-			(topLeftCell === MazeElement.WALL ? '1' : '0') +
-			(topRightCell === MazeElement.WALL ? '1' : '0') +
-			(bottomLeftCell === MazeElement.WALL ? '1' : '0') +
-			(bottomRightCell === MazeElement.WALL ? '1' : '0');
-		const shouldDrawWall = CORNERS[cornerKey];
-		if (shouldDrawWall) {
-			cornerIntersectionPoints.push(intersection);
-		}
-	});
-
-	// Find the closest collision to each corner intersection
-	cornerIntersectionPoints.forEach(intersection => {
-		let shortestDistance = 100000;
-		let closestCollisionIndex = 0;
-		anglesCollisionsAndDistances.forEach((collisionInfo: CollisionInfo, index: number) => {
-			const distance = Math.abs(intersection.x - collisionInfo.collision.x) + Math.abs(intersection.y - collisionInfo.collision.y);
-			if (distance < shortestDistance) {
-				closestCollisionIndex = index;
-				shortestDistance = distance;
-			}
-		});
-		anglesCollisionsAndDistances[closestCollisionIndex].shouldDrawWall = true;
-	});
-
-	// Draw the walls
-	anglesCollisionsAndDistances.forEach((collisionInfo: CollisionInfo, index: number) => {
-		let wallHeight = gameVars.screenHeight / collisionInfo.distance;
-
-		if (collisionInfo.shouldDrawWall) {
-			screenIo.drawVerticalLine(index, Math.round((gameVars.screenHeight - wallHeight) / 2), Math.round((gameVars.screenHeight - wallHeight) / 2 + wallHeight));
-		} else {
-			screenIo.drawPixel(index, Math.round((gameVars.screenHeight - wallHeight) / 2));
-			screenIo.drawPixel(index, Math.round((gameVars.screenHeight - wallHeight) / 2 + wallHeight));
-		}
-	});
+	//
+	// // Identify which rays should also draw a vertical line to identify corners
+	// // Find unique intersection point in the maze which are closest to each collision
+	// const intersectionPoints: { [coord: string]: Point } = {};
+	// anglesCollisionsAndDistances.forEach(angCollDis => {
+	// 	const intersectionX = Math.round(angCollDis.collision.x);
+	// 	const intersectionY = Math.round(angCollDis.collision.y);
+	// 	intersectionPoints[intersectionX + ';' + intersectionY] = { x: intersectionX, y: intersectionY };
+	// });
+	//
+	// // Determines if we should draw a vertical wall line for the given intersections at the center of these 4 maze cells:
+	// // +-----+
+	// // |0 |1 |
+	// // +-----+
+	// // |2 |3 |
+	// // +-----+
+	// //
+	// // eg: 1000 => should draw a wall at the X
+	// // +--+--+
+	// // |W |  |
+	// // +--X--+
+	// // |  |  |
+	// // +--+--+
+	// //
+	// // eg: 1010 => should not draw a wall at the X since the wall is smoothly running from top to bottom across the intersection
+	// // +--+--+
+	// // |W |  |
+	// // +--X--+
+	// // |W |  |
+	// // +--+--+
+	// //
+	// // We can assume the X location is always visible from the user's perspective
+	// let CORNERS: { [cornerKey: string]: boolean } = {
+	// 	'0000': false,
+	// 	'0001': true,
+	// 	'0010': true,
+	// 	'0011': false,
+	// 	'0100': true,
+	// 	'0101': false,
+	// 	'0110': false,
+	// 	'0111': true,
+	// 	'1000': true,
+	// 	'1001': true,
+	// 	'1010': false,
+	// 	'1011': true,
+	// 	'1100': false,
+	// 	'1101': true,
+	// 	'1110': true,
+	// 	'1111': false,
+	// };
+	// printFreeSpace('after corners');
+	//
+	// // Identify if the intersection should cause a wall line to be displayed or if it is part of a straight wall
+	// const cornerIntersectionPoints: Point[] = [];
+	// Object.keys(intersectionPoints).forEach(intersectionKey => {
+	// 	const intersection = intersectionPoints[intersectionKey];
+	// 	const topLeftCell = maze[intersection.y - 1][intersection.x - 1];
+	// 	const topRightCell = maze[intersection.y - 1][intersection.x];
+	// 	const bottomLeftCell = maze[intersection.y][intersection.x - 1];
+	// 	const bottomRightCell = maze[intersection.y][intersection.x];
+	//
+	// 	// Generate corner key: eg: 1100 or 1010
+	// 	const cornerKey: string =
+	// 		(topLeftCell === MazeElement.WALL ? '1' : '0') +
+	// 		(topRightCell === MazeElement.WALL ? '1' : '0') +
+	// 		(bottomLeftCell === MazeElement.WALL ? '1' : '0') +
+	// 		(bottomRightCell === MazeElement.WALL ? '1' : '0');
+	// 	const shouldDrawWall = CORNERS[cornerKey];
+	// 	if (shouldDrawWall) {
+	// 		cornerIntersectionPoints.push(intersection);
+	// 	}
+	// });
+	// CORNERS = {};
+	//
+	// // Find the closest collision to each corner intersection
+	// cornerIntersectionPoints.forEach(intersection => {
+	// 	let shortestDistance = 100000;
+	// 	let closestCollisionIndex = 0;
+	// 	anglesCollisionsAndDistances.forEach((collisionInfo: CollisionInfo, index: number) => {
+	// 		const distance = Math.abs(intersection.x - collisionInfo.collision.x) + Math.abs(intersection.y - collisionInfo.collision.y);
+	// 		if (distance < shortestDistance) {
+	// 			closestCollisionIndex = index;
+	// 			shortestDistance = distance;
+	// 		}
+	// 	});
+	// 	anglesCollisionsAndDistances[closestCollisionIndex].shouldDrawWall = true;
+	// });
+	//
+	// // Draw the walls
+	// anglesCollisionsAndDistances.forEach((collisionInfo: CollisionInfo, index: number) => {
+	// 	let wallHeight = gameVars.screenHeight / collisionInfo.distance;
+	//
+	// 	if (collisionInfo.shouldDrawWall) {
+	// 		screenIo.drawVerticalLine(index, Math.round((gameVars.screenHeight - wallHeight) / 2), Math.round((gameVars.screenHeight - wallHeight) / 2 + wallHeight));
+	// 	} else {
+	// 		screenIo.drawPixel(index, Math.round((gameVars.screenHeight - wallHeight) / 2));
+	// 		screenIo.drawPixel(index, Math.round((gameVars.screenHeight - wallHeight) / 2 + wallHeight));
+	// 	}
+	// });
 }
 
 function isInsideWall(playerX: number, playerY: number) {
@@ -349,11 +372,11 @@ function onFrame(screenIo: ScreenIoOperations) {
 	// lastFrame = t;
 
 	if (screenIo.BTN4.read()) {
-		// console.log('left');
+		console.log('left');
 		gameVars.playerAngle = clampDeg(gameVars.playerAngle - gameVars.angleStep);
 	}
 	if (screenIo.BTN5.read()) {
-		// console.log('right');
+		console.log('right');
 		gameVars.playerAngle = clampDeg(gameVars.playerAngle + gameVars.angleStep);
 	}
 	let quadrant: Quadrant;
@@ -362,7 +385,7 @@ function onFrame(screenIo: ScreenIoOperations) {
 	let playerXDelta: number;
 	let playerYDelta: number;
 	if (screenIo.BTN1.read()) {
-		// console.log('forward');
+		console.log('forward');
 
 		quadrant = Math.floor(gameVars.playerAngle / 90);
 		isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
@@ -372,7 +395,7 @@ function onFrame(screenIo: ScreenIoOperations) {
 		movePlayer(playerXDelta, playerYDelta);
 	}
 	if (screenIo.BTN2.read()) {
-		// console.log('backward');
+		console.log('backward');
 
 		quadrant = Math.floor(gameVars.playerAngle / 90);
 		isFacingUp = quadrant === Quadrant.TopLeft || quadrant === Quadrant.TopRight;
@@ -407,3 +430,5 @@ gameVars.startGame = startGame;
 gameVars.stopGame = stopGame;
 
 export const gameVariables = gameVars;
+
+printFreeSpace('after engine loaded');

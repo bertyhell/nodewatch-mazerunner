@@ -1,5 +1,6 @@
 import { Button, ScreenIoOperations } from './types';
 import { gameVariables } from './engine';
+import { printFreeSpace } from './utils';
 
 declare const Bangle: any;
 declare const g: any;
@@ -46,6 +47,8 @@ g.setFontAlign(0,-1);
 g.clear();
 g.drawString("Press button 2 to start game ==>",120,(g.getHeight()-6)/2);
 
+console.log('version: ' + (process as any).version);
+printFreeSpace();
 function checkForStart() {
 	if (BTN2.read()) {
 		console.log('starting game');
