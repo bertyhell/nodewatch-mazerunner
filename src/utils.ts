@@ -2,10 +2,13 @@ import { MazeElement, Point } from './types';
 
 const initialTime = new Date().getTime();
 
-export function printFreeSpace(name?: string): void {
-	const time = Math.floor(new Date().getTime() - initialTime);
-	console.log((name || 'free memory') + '; ' + time + '; ' + (process as any).memory().free);
-}
+// export function printFreeSpace(name?: string): void {
+// 	if (!(process as any).memory) {
+// 		return;
+// 	}
+// 	const time = Math.floor(new Date().getTime() - initialTime);
+// 	console.log((name || 'free memory') + '; ' + time + '; ' + (process as any).memory().free);
+// }
 
 export function clampDeg(deg: number): number {
 	return (deg + 360) % 360;

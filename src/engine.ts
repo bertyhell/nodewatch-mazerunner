@@ -1,5 +1,5 @@
 import { ScreenIoOperations, MazeElement, Point, Quadrant } from './types';
-import { clampDeg, cos, generateMaze, getSquareDistance, isOutsideMaze, printFreeSpace, sin, tan } from './utils';
+import { clampDeg, cos, generateMaze, getSquareDistance, isOutsideMaze, sin, tan } from './utils';
 
 const mazeWidth = 3;
 const mazeHeight = 3;
@@ -12,10 +12,11 @@ const angleStep = 7;
 const playerStepSize = 0.1;
 const mazeHorCells = mazeWidth * 2 + 1;
 const mazeVerCells = mazeHeight * 2 + 1;
+const SKIP_RENDER_RAYS = 8; // 1 => renders all 240 rays, 8 => renders only 240/8 rays
 
-printFreeSpace('before maze');
+// printFreeSpace('before maze');
 const maze: MazeElement[][] = generateMaze(mazeHorCells, mazeVerCells);
-printFreeSpace('after maze');
+// printFreeSpace('after maze');
 // let maze: MazeElement[][] = [
 // 	[1, 1, 1, 1, 1, 1, 1],
 // 	[1, 0, 0, 0, 1, 0, 1],
@@ -212,7 +213,7 @@ function drawWalls(screenIo: ScreenIoOperations) {
 	const startAngle = clampDeg(gameVars.playerAngle - gameVars.viewAngleWidth / 2);
 	const raytraceStepAngle = gameVars.viewAngleWidth / gameVars.screenWidth;
 	const anglesCollisionsAndDistances: CollisionInfo[] = [];
-	for (let i = 0; i < gameVars.screenWidth; i += 1) {
+	for (let i = 0; i < gameVars.screenWidth; i += SKIP_RENDER_RAYS) {
 		const viewAngle = clampDeg(startAngle + raytraceStepAngle * i);
 		const collision: Point = getCollisionDistance(viewAngle, i === 0 || i >= gameVars.screenWidth - 1, screenIo);
 		const directDistance = Math.sqrt(getSquareDistance(gameVars.playerX, gameVars.playerY, collision.x, collision.y));
@@ -431,4 +432,4 @@ gameVars.stopGame = stopGame;
 
 export const gameVariables = gameVars;
 
-printFreeSpace('after engine loaded');
+// printFreeSpace('after engine loaded');

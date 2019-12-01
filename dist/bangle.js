@@ -1,8 +1,4 @@
 var initialTime = new Date().getTime();
-function printFreeSpace(name) {
-    var time = Math.floor(new Date().getTime() - initialTime);
-    console.log((name || 'free memory') + '; ' + time + '; ' + process.memory().free);
-}
 function clampDeg(deg) {
     return (deg + 360) % 360;
 }
@@ -80,9 +76,8 @@ var angleStep = 7;
 var playerStepSize = 0.1;
 var mazeHorCells = mazeWidth * 2 + 1;
 var mazeVerCells = mazeHeight * 2 + 1;
-printFreeSpace('before maze');
+var SKIP_RENDER_RAYS = 8;
 var maze = generateMaze(mazeHorCells, mazeVerCells);
-printFreeSpace('after maze');
 var playerAngle = (maze[1][2] === 1 ? 90 : 0);
 var gameVars = {
     mazeWidth: mazeWidth,
@@ -223,7 +218,7 @@ function drawWalls(screenIo) {
     var startAngle = clampDeg(gameVars.playerAngle - gameVars.viewAngleWidth / 2);
     var raytraceStepAngle = gameVars.viewAngleWidth / gameVars.screenWidth;
     var anglesCollisionsAndDistances = [];
-    for (var i = 0; i < gameVars.screenWidth; i += 1) {
+    for (var i = 0; i < gameVars.screenWidth; i += SKIP_RENDER_RAYS) {
         var viewAngle = clampDeg(startAngle + raytraceStepAngle * i);
         var collision = getCollisionDistance(viewAngle, i === 0 || i >= gameVars.screenWidth - 1, screenIo);
         var directDistance = Math.sqrt(getSquareDistance(gameVars.playerX, gameVars.playerY, collision.x, collision.y));
@@ -312,78 +307,6 @@ function onFrame(screenIo) {
 gameVars.startGame = startGame;
 gameVars.stopGame = stopGame;
 var gameVariables = gameVars;
-printFreeSpace('after engine loaded');
-
-var initialTime = new Date().getTime();
-function printFreeSpace(name) {
-    var time = Math.floor(new Date().getTime() - initialTime);
-    console.log((name || 'free memory') + '; ' + time + '; ' + process.memory().free);
-}
-function clampDeg(deg) {
-    return (deg + 360) % 360;
-}
-function cos(deg) {
-    return Math.cos(deg / 180 * Math.PI);
-}
-function sin(deg) {
-    return Math.sin(deg / 180 * Math.PI);
-}
-function tan(deg) {
-    return Math.tan(deg / 180 * Math.PI);
-}
-function getSquareDistance(x1, y1, x2, y2) {
-    return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-}
-function isOutsideMaze(maze, location) {
-    return !(location.x >= 0 && location.x < maze[0].length && location.y >= 0 && location.y < maze.length);
-}
-function getUnvisitedNeighbors(maze, currentPosition) {
-    var neighbors = [
-        { x: currentPosition.x - 2, y: currentPosition.y },
-        { x: currentPosition.x, y: currentPosition.y - 2 },
-        { x: currentPosition.x + 2, y: currentPosition.y },
-        { x: currentPosition.x, y: currentPosition.y + 2 },
-    ];
-    return neighbors.filter(function (neighbor) {
-        return !isOutsideMaze(maze, neighbor) && maze[neighbor.y][neighbor.x] === -1;
-    });
-}
-function randomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1) + min);
-}
-function generateMaze(width, height) {
-    var generatedMaze = new Array(height);
-    for (var row = 0; row < height; row++) {
-        generatedMaze[row] = new Array(width);
-        for (var col = 0; col < width; col++) {
-            if (row % 2 === 0 || col % 2 === 0) {
-                generatedMaze[row][col] = 1;
-            }
-            else {
-                generatedMaze[row][col] = -1;
-            }
-        }
-    }
-    var stack = [];
-    var currentPosition = { x: 1, y: 1 };
-    generatedMaze[currentPosition.y][currentPosition.x] = 0;
-    stack.push(currentPosition);
-    var unvisitedNeighbors;
-    while (stack.length) {
-        currentPosition = stack.pop();
-        unvisitedNeighbors = getUnvisitedNeighbors(generatedMaze, currentPosition);
-        if (unvisitedNeighbors.length) {
-            stack.push(currentPosition);
-            var unvisitedNeighbor = unvisitedNeighbors[randomInt(0, unvisitedNeighbors.length - 1)];
-            generatedMaze[(unvisitedNeighbor.y + currentPosition.y) / 2][(unvisitedNeighbor.x + currentPosition.x) / 2] = 0;
-            generatedMaze[unvisitedNeighbor.y][unvisitedNeighbor.x] = 0;
-            stack.push(unvisitedNeighbor);
-        }
-    }
-    generatedMaze[1][1] = 2;
-    generatedMaze[height - 2][width - 2] = 3;
-    return generatedMaze;
-}
 
 Bangle.setLCDMode('doublebuffered');
 function drawPixel(x, y, color) {
@@ -415,8 +338,8 @@ var screenIo = {
 g.setFontAlign(0, -1);
 g.clear();
 g.drawString("Press button 2 to start game ==>", 120, (g.getHeight() - 6) / 2);
+g.flip();
 console.log('version: ' + process.version);
-printFreeSpace();
 function checkForStart() {
     if (BTN2.read()) {
         console.log('starting game');
