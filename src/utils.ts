@@ -1,6 +1,37 @@
 import { MazeElement, Point } from './types';
 
-const initialTime = new Date().getTime();
+// const initialTime = new Date().getTime();
+
+const times: {[name: string]: {avgTime: number, traces: number}} = {};
+let lastTraceTime: number;
+let stopTrace = false;
+
+export function trace(name: string): void {
+	if (stopTrace) {
+		return;
+	}
+	const time = new Date().getTime();
+	if (lastTraceTime) {
+		const timeDelta = time - lastTraceTime;
+	  if (times[name]) {
+	  	times[name].avgTime = (times[name].avgTime * times[name].traces + timeDelta) / (times[name].traces + 1);
+	  	times[name].traces += 1;
+		} else {
+	  	times[name] = {
+	  		avgTime: timeDelta,
+				traces: 1,
+			}
+		}
+	}
+	lastTraceTime = time;
+
+	if (times[name] && times[name].traces === 10) {
+		Object.keys(times).forEach(key => {
+			console.log(key + ';' + times[key].avgTime);
+		});
+		stopTrace = true;
+	}
+}
 
 // export function printFreeSpace(name?: string): void {
 // 	if (!(process as any).memory) {

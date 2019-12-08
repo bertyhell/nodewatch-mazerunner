@@ -2,8 +2,8 @@ import { gameVariables } from './engine';
 import { ButtonIndex, MazeElement, ScreenIoOperations } from './types';
 import { clampDeg, cos, sin } from './utils';
 
-const debugCellSize = 20;
-const showDebug = false;
+const debugCellSize = 40;
+const showDebug = true;
 
 interface ButtonInfo {
 	name: 'up' | 'down' | 'menu' | 'left' | 'right';
